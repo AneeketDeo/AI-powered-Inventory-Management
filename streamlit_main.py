@@ -476,9 +476,10 @@ def run_conversation(user_prompt):
                             if "price" not in function_args or prc is None:
                                 missing_keys.append("price")
 
-                            if missing_keys:
+                            if missing_keys: 
                                 # **Clear Error Message for LLM**
                                 # Don't call the Python function. Instruct the LLM to query the user.
+                                print('Missing items in add_inventory_item:', missing_keys)
                                 error_detail = f"Required information missing from your request: {', '.join(missing_keys)}."
                                 instruction = "Do NOT proceed with adding the item. Do NOT guess or use default values (like 0). You MUST ask the user to provide the missing details."
                                 function_response = json.dumps({
