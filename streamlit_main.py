@@ -603,7 +603,7 @@ tab1, tab2, tab3 = st.tabs(["📊 View Inventory", "📝 Manage Items", "💬 Ch
 with tab1:
     st.header("Current Inventory Status")
     st.dataframe(get_inventory_df(), use_container_width=True, hide_index=True)
-    if st.button("Refresh View", key="refresh_view"): st.rerun()
+    # if st.button("Refresh View", key="refresh_view"): st.rerun()
 
 # --- Tab 2: Manage Items ---
 with tab2:
