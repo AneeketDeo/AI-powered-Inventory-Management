@@ -468,7 +468,7 @@ def run_conversation(user_prompt):
                             prc = function_args.get("price")
 
                             print("inside add inventory item:", name, qty, prc)
-                            os.write(1,b"inside add inventory item:", name, qty, prc)
+                            st.write(1,b"inside add inventory item:", name, qty, prc)
 
                             # Check which required keys are actually missing from the LLM's provided arguments
                             # (i.e., the key itself is absent or the value is None)
@@ -483,7 +483,7 @@ def run_conversation(user_prompt):
                             if missing_keys: 
                                 # **Clear Error Message for LLM**
                                 # Don't call the Python function. Instruct the LLM to query the user.
-                                print('Missing items in add_inventory_item:', missing_keys)
+                                st.write('Missing items in add_inventory_item:', missing_keys)
 
                                 error_detail = f"Required information missing from your request: {', '.join(missing_keys)}."
                                 instruction = "Do NOT proceed with adding the item. Do NOT guess or use default values (like 0). You MUST ask the user to provide the missing details."
