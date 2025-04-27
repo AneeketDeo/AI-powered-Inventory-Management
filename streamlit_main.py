@@ -1,4 +1,5 @@
 # --- Core Libraries ---
+import os
 import streamlit as st
 import pandas as pd
 import datetime
@@ -467,6 +468,7 @@ def run_conversation(user_prompt):
                             prc = function_args.get("price")
 
                             print("inside add inventory item:", name, qty, prc)
+                            os.write(1,b"inside add inventory item:", name, qty, prc)
 
                             # Check which required keys are actually missing from the LLM's provided arguments
                             # (i.e., the key itself is absent or the value is None)
