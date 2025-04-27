@@ -457,29 +457,41 @@ def run_conversation(user_prompt):
 
                         # Inside run_conversation's `if tool_calls:` loop, within the `for tool_call in tool_calls:` section:
 
+                        # Inside run_conversation's `if tool_calls:` loop, within the `for tool_call in tool_calls:` section:
+
                         elif function_name == "add_inventory_item":
-                            # **Pre-call check for KEY PRESENCE**
+                            # Pre-call check for KEY PRESENCE from LLM Arguments
+                            # We check if the LLM actually included values for the required fields in its function call request.
                             name = function_args.get("item_name")
                             qty = function_args.get("quantity")
                             prc = function_args.get("price")
 
                             missing_keys = []
-                            # Check if keys are completely missing or if provided value is None
-                            if "item_name" not in function_args or name is None: missing_keys.append("item_name")
-                            if "quantity" not in function_args or qty is None: missing_keys.append("quantity")
-                            if "price" not in function_args or prc is None: missing_keys.append("price")
+                            # Use a stricter check: Is the key present AND is the value not None?
+                            # (Some LLMs might send null explicitly if they don't know)
+                            if function_args.get("item_name") is None: missing_keys.append("item_name")
+                            if function_args.get("quantity") is None: missing_keys.append("quantity")
+                            if function_args.get("price") is None: missing_keys.append("price")
 
                             if missing_keys:
-                                # **DIRECT INSTRUCTION for LLM:** Ask the user for exactly what's missing.
-                                details_needed = ', '.join(missing_keys).replace("item_name","name") # User-friendly names
+                                # **CONVERSATIONAL ERROR FEEDBACK for LLM:**
+                                # Tell the LLM precisely how to respond to the user to get the missing info.
+                                # Use placeholders like {item_name} that the LLM can fill if the name *was* provided.
+                                provided_name = name if name else "(unspecified item)" # Use provided name if available
+                                details_needed = ', '.join(missing_keys).replace("item_name","name").replace("quantity","quantity").replace("price","price")
+
+                                # This message is designed to be the core of the LLM's *next conversational turn*
+                                user_facing_request = f"Okay, I can try to add '{provided_name}', but I need more details. Could you please provide the {details_needed} for this item?"
+
                                 function_response = json.dumps({
-                                    "status": "error_missing_info",
-                                    # This message tells the LLM exactly what action to take next conversationally
-                                    "message": f"Please ask the user to provide the missing details for the new item: {details_needed}."
+                                    "status": "error_user_input_required", # Specific status
+                                    # The 'message' should guide the LLM's response generation directly
+                                    "message": user_facing_request
                                 })
-                                # Log for debugging: print(f"DEBUG: LLM add_item missing {details_needed}. Args: {function_args}")
+                                # Log for debugging: print(f"DEBUG: LLM add_item blocked, missing {details_needed}. User needs to provide. Args received: {function_args}")
                             else:
-                                # Keys seem present, call the function for value validation
+                                # Keys and non-None values were provided by LLM.
+                                # Proceed to call the function for value validation (e.g., positive checks).
                                 function_response = function_to_call(item_name=name, quantity=qty, price=prc)
                         elif function_name == "update_inventory_item":
                             identifier = function_args.get("item_identifier")
