@@ -207,19 +207,137 @@ def find_low_stock_items(quantity_threshold=10):
             "status": "found", "threshold": quantity_threshold, "items": low_stock_items
         })
 
+def add_inventory_item(item_name, quantity, price):
+    """
+    Adds a new item to the inventory.
+    Args:
+        item_name (str): The name for the new item.
+        quantity (int): The initial quantity of the new item. Must be non-negative.
+        price (float): The price per unit for the new item. Must be non-negative.
+    Returns a JSON string indicating success or failure, including the new Item ID if successful.
+    """
+    inventory = st.session_state.inventory
+    item_name = item_name.strip()
+
+    # --- Basic Input Validation ---
+    if not item_name:
+        return json.dumps({"status": "error", "message": "Item name cannot be empty."})
+    try:
+        quantity = int(quantity)
+        if quantity < 0:
+            return json.dumps({"status": "error", "message": "Quantity cannot be negative."})
+    except (ValueError, TypeError):
+        return json.dumps({"status": "error", "message": f"Invalid quantity provided: {quantity}. Must be an integer."})
+    try:
+        price = float(price)
+        if price < 0.0:
+             return json.dumps({"status": "error", "message": "Price cannot be negative."})
+    except (ValueError, TypeError):
+         return json.dumps({"status": "error", "message": f"Invalid price provided: {price}. Must be a number."})
+
+    # --- Generate ID and Add ---
+    try:
+        new_id = generate_item_id() # Use the existing helper function
+        inventory[new_id] = {
+            "name": item_name,
+            "quantity": quantity,
+            "price": price,
+            "last_updated": datetime.datetime.now()
+        }
+        # Success: Return confirmation including the new details
+        return json.dumps({
+            "status": "success",
+            "message": f"Successfully added '{item_name}' (ID: {new_id}) with quantity {quantity} and price ${price:.2f}.",
+            "item_id": new_id,
+            "name": item_name,
+            "quantity": quantity,
+            "price": price
+        })
+    except Exception as e:
+        # Catch unexpected errors during addition
+        return json.dumps({"status": "error", "message": f"An unexpected error occurred while adding the item: {str(e)}"})
+
+
 # --- Define Tools for LLM ---
 # Map tool names to actual Python functions
 available_functions = {
     "get_inventory_summary": get_inventory_summary,
     "get_item_details": get_item_details,
     "find_low_stock_items": find_low_stock_items,
+    "add_inventory_item": add_inventory_item, 
 }
 
 # Define tool structure for the LLM API call
 tools = [
-    { "type": "function", "function": { "name": "get_inventory_summary", "description": "Get a summary of the inventory status: total distinct items and total quantity." }},
-    { "type": "function", "function": { "name": "get_item_details", "description": "Get details (quantity, price) for a specific item by its name or Item ID.", "parameters": { "type": "object", "properties": { "item_identifier": { "type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item." }}, "required": ["item_identifier"] }}},
-    { "type": "function", "function": { "name": "find_low_stock_items", "description": "Find items in the inventory that are low in stock, based on a quantity threshold.", "parameters": { "type": "object", "properties": { "quantity_threshold": { "type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user." }}, "required": [] }}},
+    # ... (keep existing tool definitions for get_inventory_summary, get_item_details, find_low_stock_items) ...
+    {
+        "type": "function",
+        "function": {
+            "name": "get_inventory_summary",
+            "description": "Get a summary of the inventory status: total distinct items and total quantity.",
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_item_details",
+            "description": "Get details (quantity, price) for a specific item by its name or Item ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_identifier": {
+                        "type": "string",
+                        "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item.",
+                    },
+                },
+                "required": ["item_identifier"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "find_low_stock_items",
+            "description": "Find items in the inventory that are low in stock, based on a quantity threshold.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "quantity_threshold": {
+                        "type": "integer",
+                        "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user.",
+                    },
+                },
+                "required": [], # Threshold is optional
+            },
+        },
+    },
+    # --- NEW TOOL DEFINITION ---
+    {
+        "type": "function",
+        "function": {
+            "name": "add_inventory_item",
+            "description": "Adds a new item to the inventory system. Requires the item's name, quantity, and price.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_name": {
+                        "type": "string",
+                        "description": "The name of the new item to add."
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "description": "The initial stock quantity for the new item."
+                    },
+                    "price": {
+                        "type": "number", # Use 'number' for flexibility (allows float)
+                        "description": "The price per unit for the new item."
+                    }
+                },
+                "required": ["item_name", "quantity", "price"] # All are mandatory to add an item
+            },
+        },
+    },
+    # --- END OF NEW TOOL ---
 ]
 
 # --- LLM Interaction Logic ---
@@ -275,6 +393,14 @@ def run_conversation(user_prompt):
                              else: function_response = json.dumps({"error": "Missing 'item_identifier' argument."})
                         elif function_name == "get_inventory_summary":
                              function_response = function_to_call()
+                        elif function_name == "add_inventory_item":
+                            # Extract required args for add_inventory_item
+                            name = function_args.get("item_name")
+                            qty = function_args.get("quantity")
+                            prc = function_args.get("price")
+                            # Check if all required args were provided by the LLM
+                            if name is not None and qty is not None and prc is not None:
+                                function_response = function_to_call(item_name=name, quantity=qty, price=prc)
                         else: function_response = json.dumps({"error": f"Unhandled arguments for function {function_name}"})
                     except json.JSONDecodeError: function_response = json.dumps({"error": f"Invalid arguments format from LLM for {function_name}: {function_args_str}"})
                     except Exception as e: function_response = json.dumps({"error": f"Error executing {function_name}: {str(e)}"})
