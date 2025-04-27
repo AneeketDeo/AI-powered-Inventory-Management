@@ -215,32 +215,39 @@ def find_low_stock_items(quantity_threshold=10):
 
 def add_inventory_item(item_name, quantity, price):
     """
-    Adds a new item to the inventory. Requires name, quantity, and price.
-    Args: item_name (str), quantity (int), price (float).
+    Adds a new item. Requires name, POSITIVE quantity, and POSITIVE price.
     Returns JSON string confirming success/failure. Includes new Item ID if successful.
     """
     inventory = st.session_state.inventory
     item_name = item_name.strip()
 
-    # --- Input Validation within the function ---
-    st.write("Validating input...")
+    # --- Refined Input Validation within the function ---
     if not item_name:
         return json.dumps({"status": "validation_error", "message": "Cannot add item: Item name is missing or empty."})
+
     try:
         quantity = int(quantity)
-        if quantity < 0:
-            return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Quantity ({quantity}) cannot be negative."})
+        # **Require positive quantity for adding**
+        if quantity <= 0:
+            return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Quantity must be positive (you provided {quantity})."})
     except (ValueError, TypeError):
-        return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Invalid quantity value '{quantity}'. It must be a whole number."})
+        return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Invalid quantity value '{quantity}'. Must be a positive whole number."})
+
     try:
         price = float(price)
-        if price < 0.0:
-             return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Price (${price}) cannot be negative."})
+        # **Require positive price for adding**
+        if price <= 0.0:
+             return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Price must be positive (you provided ${price:.2f})."})
     except (ValueError, TypeError):
-         return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Invalid price value '{price}'. It must be a number."})
+         return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Invalid price value '{price}'. Must be a positive number."})
 
     # --- Generate ID and Add ---
     try:
+        # Check for duplicate names (optional but good practice)
+        for item_id, details in inventory.items():
+            if details.get('name','').lower() == item_name.lower():
+                 return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': An item with this name already exists (ID: {item_id}). Use the update function instead."})
+
         new_id = generate_item_id()
         inventory[new_id] = {
             "name": item_name, "quantity": quantity, "price": price,
@@ -252,15 +259,7 @@ def add_inventory_item(item_name, quantity, price):
             "item_id": new_id, "name": item_name, "quantity": quantity, "price": price
         })
     except Exception as e:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        last_trace = traceback.extract_tb(exc_traceback)[-1]
-        filename, line_number, function_name, text = last_trace
-
-        st.write(f"Exception occurred in file: {filename}, line {line_number}, in {function_name}")
-        st.write(f"Code causing error: {text}")
-        st.write(f"Error type: {exc_type.__name__}, Message: {e}")
-        return json.dumps({"status": "error", "message": f"An unexpected error occurred adding item: {str(e)}"})
-    
+        return json.dumps({"status": "error", "message": f"An unexpected error occurred adding item: {str(e)}"}) 
 
 
 def update_inventory_item(item_identifier, new_name=None, new_quantity=None, new_price=None):
@@ -470,46 +469,23 @@ def run_conversation(user_prompt):
 
                         elif function_name == "add_inventory_item":
                             # **Refined Check for Required Args Provided by LLM**
-                            # We explicitly check if the LLM included these keys in its arguments payload.
-                            # We rely on the 'required' field in the tool definition, but add this check
-                            # to prevent the LLM from proceeding with defaults/guesses if it ignores 'required'.
-
                             name = function_args.get("item_name") # Use .get() for safety
                             qty = function_args.get("quantity")
                             prc = function_args.get("price")
-
-                            print("inside add inventory item:", name, qty, prc)
-                            st.write(1,b"inside add inventory item:", name, qty, prc)
-
                             # Check which required keys are actually missing from the LLM's provided arguments
-                            # (i.e., the key itself is absent or the value is None)
                             missing_keys = []
-                            if "item_name" not in function_args or name is None:
-                                missing_keys.append("item_name")
-                                st.write("missing item name")
-                            if "quantity" not in function_args or qty is None:
-                                missing_keys.append("quantity")
-                                st.write("missing item quantity")
+                            if "item_name" not in function_args or name is None: missing_keys.append("item_name")
+                            if "quantity" not in function_args or qty is None: missing_keys.append("quantity")
+                            if "price" not in function_args or prc is None: missing_keys.append("price")
 
-                            if "price" not in function_args or prc is None:
-                                missing_keys.append("price")
-                                st.write("missing item price")
-
-                            st.write("after checking missing values:", missing_keys)
-                            st.write(json.dumps({"status": "error_missing_info", "message": f"Required information missing from your request: {', '.join(missing_keys)}."}))
-                            if missing_keys: 
+                            if missing_keys:
                                 # **Clear Error Message for LLM**
-                                # Don't call the Python function. Instruct the LLM to query the user.
-                                st.write('Missing items in add_inventory_item:', missing_keys)
-
-                                error_detail = f"Required information missing from your request: {', '.join(missing_keys)}."
-                                instruction = "Do NOT proceed with adding the item. Do NOT guess or use default values (like 0). You MUST ask the user to provide the missing details."
+                                error_detail = f"Required info missing: {', '.join(missing_keys)}."
+                                instruction = "Do NOT proceed. Do NOT guess. Ask the user for missing details."
                                 function_response = json.dumps({
                                     "status": "error_missing_info", # More specific status
                                     "message": f"Action incomplete. {error_detail} {instruction}"
                                 })
-                                # Optional: Log this attempt for debugging
-                                # print(f"DEBUG: LLM tried 'add_item' missing {missing_keys}. Args received: {function_args}")
                         elif function_name == "update_inventory_item":
                             identifier = function_args.get("item_identifier")
                             new_name = function_args.get("new_name") # Will be None if not provided
