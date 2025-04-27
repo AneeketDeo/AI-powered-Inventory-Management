@@ -21,7 +21,7 @@ st.title("📦 AI-Powered Inventory Management")
 # Read the App URL from secrets - YOU MUST SET THIS in your Streamlit Cloud secrets!
 # Example: APP_URL="https://your-app-name.streamlit.app"
 # Use a generic placeholder if not set in secrets.
-# OPENROUTER_REFERRER_URL = st.secrets.get("APP_URL", "https://your-inventory-app.streamlit.app/placeholder")
+OPENROUTER_REFERRER_URL = st.secrets.get("APP_URL", "https://inventory-app-placeholder.streamlit.app/") # Added trailing slash just in case
 OPENROUTER_APP_TITLE = "Streamlit Inventory Chatbot" # Can customize this
 
 # --- Initialize LLM Client (OpenRouter) ---
@@ -35,7 +35,10 @@ try:
     client = OpenAI(
         api_key=openrouter_key,
         base_url="https://openrouter.ai/api/v1",
-
+        default_headers={
+            "HTTP-Referer": OPENROUTER_REFERRER_URL, # Helps OpenRouter track usage source
+            "X-Title": OPENROUTER_APP_TITLE,         # Helps OpenRouter track usage source
+        }
     )
     # Quick check to validate credentials and connection during startup
     client.models.list()
@@ -43,7 +46,7 @@ try:
     llm_provider = "OpenRouter"
     llm_enabled = True
     st.sidebar.success(f"Connected to {llm_provider}", icon="✅")
-    # st.sidebar.caption(f"Using URL: {OPENROUTER_REFERRER_URL}") # Show URL being used
+    st.sidebar.caption(f"Using URL: {OPENROUTER_REFERRER_URL}") # Show URL being used
 
 except KeyError:
     st.sidebar.error("`OPENROUTER_API_KEY` not found in Streamlit secrets. Chatbot disabled.", icon="⚠️")
@@ -67,10 +70,13 @@ if 'inventory' not in st.session_state:
         "ITEM005": {"name": "Webcam", "quantity": 30, "price": 45.00, "last_updated": datetime.datetime.now()},
     }
 
-# Chat History
+# Chat History - Ensure it's always a list of dictionaries
 if "messages" not in st.session_state:
     assistant_greeting = f"Hello! Ask me anything about the inventory (using {llm_provider})." if llm_enabled else "Hello! Inventory Bot here. LLM connection failed."
     st.session_state.messages = [{"role": "assistant", "content": assistant_greeting}]
+# Ensure existing messages are dicts (for dev robustness if code changed)
+st.session_state.messages = [msg if isinstance(msg, dict) else {"role": getattr(msg, 'role', 'unknown'), "content": getattr(msg, 'content', None), "tool_calls": getattr(msg, 'tool_calls', None)} for msg in st.session_state.messages]
+
 
 # --- Helper Functions ---
 def get_inventory_df():
@@ -211,47 +217,9 @@ available_functions = {
 
 # Define tool structure for the LLM API call
 tools = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_inventory_summary",
-            "description": "Get a summary of the inventory status: total distinct items and total quantity.",
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_item_details",
-            "description": "Get details (quantity, price) for a specific item by its name or Item ID.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "item_identifier": {
-                        "type": "string",
-                        "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item.",
-                    },
-                },
-                "required": ["item_identifier"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "find_low_stock_items",
-            "description": "Find items in the inventory that are low in stock, based on a quantity threshold.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "quantity_threshold": {
-                        "type": "integer",
-                        "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user.",
-                    },
-                },
-                "required": [], # Threshold is optional
-            },
-        },
-    },
+    { "type": "function", "function": { "name": "get_inventory_summary", "description": "Get a summary of the inventory status: total distinct items and total quantity." }},
+    { "type": "function", "function": { "name": "get_item_details", "description": "Get details (quantity, price) for a specific item by its name or Item ID.", "parameters": { "type": "object", "properties": { "item_identifier": { "type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item." }}, "required": ["item_identifier"] }}},
+    { "type": "function", "function": { "name": "find_low_stock_items", "description": "Find items in the inventory that are low in stock, based on a quantity threshold.", "parameters": { "type": "object", "properties": { "quantity_threshold": { "type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user." }}, "required": [] }}},
 ]
 
 # --- LLM Interaction Logic ---
@@ -261,34 +229,29 @@ def run_conversation(user_prompt):
         return f"LLM client ({llm_provider}) not available. Cannot process request."
 
     # --- Choose Model ---
-    # Ensure the chosen model supports tool/function calling on OpenRouter
-    # Examples: "openai/gpt-3.5-turbo", "openai/gpt-4-turbo-preview", "anthropic/claude-3-haiku-20240307"
-    # Check OpenRouter docs for model capabilities if unsure.
     model_name = "openai/gpt-3.5-turbo" # A reliable choice for OpenAI-style function calling
-    # model_name = "anthropic/claude-3-haiku-20240307" # Good alternative, ensure testing
 
     # --- Prepare History ---
-    # Add user message to the official history first
     st.session_state.messages.append({"role": "user", "content": user_prompt})
-
-    # Prepare message list for the API call (can potentially trim history here if needed)
-    messages_for_api = st.session_state.messages # Send full history for now
+    messages_for_api = st.session_state.messages
 
     try:
         # --- First API Call: Get response or tool request ---
         response = client.chat.completions.create(
-            model=model_name,
-            messages=messages_for_api,
-            tools=tools,
-            tool_choice="auto", # Let model decide whether to use a tool
+            model=model_name, messages=messages_for_api, tools=tools, tool_choice="auto"
         )
         response_message = response.choices[0].message
-        tool_calls = response_message.tool_calls # Check if the model wants to call functions
+        tool_calls = response_message.tool_calls
 
         # --- Handle Tool Calls (if any) ---
         if tool_calls:
-            # Append the assistant's response wanting to call tools
-            st.session_state.messages.append(response_message) # Store the full message object
+            # **FIX:** Append the assistant's response as a dictionary
+            assistant_message_dict = {
+                "role": response_message.role,
+                "content": response_message.content, # May be None
+                "tool_calls": response_message.tool_calls # Store the list of tool call objects
+            }
+            st.session_state.messages.append(assistant_message_dict)
 
             # Execute tools and collect results
             tool_results_messages = []
@@ -302,55 +265,43 @@ def run_conversation(user_prompt):
                 else:
                     try:
                         function_args = json.loads(function_args_str)
-                        # Call function: Handle cases with and without specific args
+                        # Call function with appropriate args
                         if function_name == "find_low_stock_items":
-                             # Use default if threshold not provided, else use provided value
-                             threshold = function_args.get("quantity_threshold", 10) # Safely get arg or use default
+                             threshold = function_args.get("quantity_threshold", 10)
                              function_response = function_to_call(quantity_threshold=threshold)
                         elif function_name == "get_item_details":
                              identifier = function_args.get("item_identifier")
-                             if identifier:
-                                 function_response = function_to_call(item_identifier=identifier)
-                             else:
-                                 function_response = json.dumps({"error": "Missing 'item_identifier' argument."})
+                             if identifier: function_response = function_to_call(item_identifier=identifier)
+                             else: function_response = json.dumps({"error": "Missing 'item_identifier' argument."})
                         elif function_name == "get_inventory_summary":
-                             function_response = function_to_call() # No arguments needed
-                        else:
-                             # Should not happen if tool definition is correct
-                             function_response = json.dumps({"error": f"Unhandled arguments for function {function_name}"})
+                             function_response = function_to_call()
+                        else: function_response = json.dumps({"error": f"Unhandled arguments for function {function_name}"})
+                    except json.JSONDecodeError: function_response = json.dumps({"error": f"Invalid arguments format from LLM for {function_name}: {function_args_str}"})
+                    except Exception as e: function_response = json.dumps({"error": f"Error executing {function_name}: {str(e)}"})
 
-                    except json.JSONDecodeError:
-                        function_response = json.dumps({"error": f"Invalid arguments format from LLM for {function_name}: {function_args_str}"})
-                    except Exception as e:
-                        function_response = json.dumps({"error": f"Error executing {function_name}: {str(e)}"})
-
-                # Prepare message for API with tool result
+                # Prepare message for API with tool result (always a dictionary)
                 tool_results_messages.append({
-                    "tool_call_id": tool_call.id,
-                    "role": "tool",
-                    "name": function_name,
+                    "tool_call_id": tool_call.id, "role": "tool", "name": function_name,
                     "content": function_response, # Function output (JSON string)
                 })
 
-            # Add all tool results to the main message history
+            # Add all tool results (dictionaries) to the main message history
             st.session_state.messages.extend(tool_results_messages)
 
             # --- Second API Call: Send tool results back to LLM ---
-            messages_for_second_call = st.session_state.messages # Send updated history
+            messages_for_second_call = st.session_state.messages
             second_response = client.chat.completions.create(
-                model=model_name,
-                messages=messages_for_second_call,
-                # No tools needed here, we just want the final text response
+                model=model_name, messages=messages_for_second_call
             )
             final_response_content = second_response.choices[0].message.content
-            # Append the final assistant text response
+            # Append final assistant response (dictionary)
             st.session_state.messages.append({"role": "assistant", "content": final_response_content})
             return final_response_content
 
         # --- Handle Direct Response (No Tool Call) ---
         else:
             final_response_content = response_message.content
-            # Append the direct assistant response
+            # Append direct assistant response (dictionary)
             st.session_state.messages.append({"role": "assistant", "content": final_response_content})
             return final_response_content
 
@@ -363,16 +314,13 @@ def run_conversation(user_prompt):
     except Exception as e:
         error_msg = f"Unexpected error during LLM interaction ({model_name}): {e}"
         st.error(error_msg, icon="🚨")
-        # Attempt removal of last user message on error, if appropriate
-        if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-            st.session_state.messages.pop()
+        if st.session_state.messages and st.session_state.messages[-1]["role"] == "user": st.session_state.messages.pop()
         st.session_state.messages.append({"role": "assistant", "content": f"Sorry, an unexpected error occurred: {e}"})
         return f"Unexpected Error: {e}"
 
 
 # --- Streamlit UI Layout ---
 st.sidebar.header("Actions")
-
 # --- Tab Definitions ---
 tab1, tab2, tab3 = st.tabs(["📊 View Inventory", "📝 Manage Items", "💬 Chatbot"])
 
@@ -380,17 +328,14 @@ tab1, tab2, tab3 = st.tabs(["📊 View Inventory", "📝 Manage Items", "💬 Ch
 with tab1:
     st.header("Current Inventory Status")
     st.dataframe(get_inventory_df(), use_container_width=True, hide_index=True)
-    if st.button("Refresh View", key="refresh_view"):
-        st.rerun()
+    if st.button("Refresh View", key="refresh_view"): st.rerun()
 
 # --- Tab 2: Manage Items ---
 with tab2:
     st.header("Manage Inventory Items")
     st.info("Add, update, or delete items from the inventory list.", icon="ℹ️")
-
     col_add, col_manage = st.columns(2)
-
-    # Add New Item Form
+    # Add Form... (Keep as before)
     with col_add:
         st.subheader("➕ Add New Item")
         with st.form("add_item_form", clear_on_submit=True):
@@ -398,84 +343,35 @@ with tab2:
             new_quantity = st.number_input("Quantity*", min_value=0, step=1, value=0)
             new_price = st.number_input("Price (per unit)*", min_value=0.00, step=0.01, value=0.00, format="%.2f")
             submitted_add = st.form_submit_button("Add Item")
-
             if submitted_add:
-                if not new_name or new_quantity is None or new_price is None:
-                    st.warning("Please fill in all required fields (*).")
+                if not new_name or new_quantity is None or new_price is None: st.warning("Please fill in all required fields (*).")
                 else:
-                    new_id = generate_item_id()
-                    st.session_state.inventory[new_id] = {
-                        "name": new_name.strip(),
-                        "quantity": int(new_quantity),
-                        "price": float(new_price),
-                        "last_updated": datetime.datetime.now()
-                    }
-                    st.success(f"✅ Item '{new_name}' ({new_id}) added successfully!")
-                    st.rerun() # Rerun to update views immediately
-
-    # Update/Delete Item Section
+                    new_id = generate_item_id(); st.session_state.inventory[new_id] = {"name": new_name.strip(), "quantity": int(new_quantity), "price": float(new_price), "last_updated": datetime.datetime.now()}
+                    st.success(f"✅ Item '{new_name}' ({new_id}) added successfully!"); st.rerun()
+    # Update/Delete Form... (Keep as before)
     with col_manage:
         st.subheader("✏️ Update / 🗑️ Delete Item")
-        if not st.session_state.inventory:
-            st.info("Inventory is empty. Add items first.")
+        if not st.session_state.inventory: st.info("Inventory is empty. Add items first.")
         else:
-            # Create a list of tuples: (display name, item_id) for the selectbox
-            item_options = [
-                (f"{details.get('name', 'N/A')} ({item_id})", item_id)
-                for item_id, details in st.session_state.inventory.items()
-            ]
-            item_options.sort() # Sort alphabetically by display name
-            item_options.insert(0, ("-- Select Item --", None)) # Placeholder
-
-            # Use format_func to display the name, but return the ID
-            selected_option = st.selectbox(
-                "Select Item to Manage",
-                options=item_options,
-                format_func=lambda option: option[0], # Display name part
-                key="manage_select"
-            )
-            selected_id = selected_option[1] # Get the actual item ID
-
+            item_options = [(f"{details.get('name', 'N/A')} ({item_id})", item_id) for item_id, details in st.session_state.inventory.items()]; item_options.sort(); item_options.insert(0, ("-- Select Item --", None))
+            selected_option = st.selectbox("Select Item to Manage", options=item_options, format_func=lambda option: option[0], key="manage_select"); selected_id = selected_option[1]
             if selected_id:
                 item = st.session_state.inventory.get(selected_id)
-                if item: # Check if item still exists (might be deleted in another session/tab)
-                    with st.form(f"update_delete_{selected_id}_form"): # Unique form key per item
-                        st.write(f"**Managing:** {item.get('name', 'N/A')} ({selected_id})")
-                        update_name = st.text_input("Item Name*", value=item.get('name', ''))
-                        update_quantity = st.number_input("Quantity*", min_value=0, step=1, value=item.get('quantity', 0))
-                        update_price = st.number_input("Price*", min_value=0.00, step=0.01, format="%.2f", value=item.get('price', 0.00))
-
+                if item:
+                    with st.form(f"update_delete_{selected_id}_form"):
+                        st.write(f"**Managing:** {item.get('name', 'N/A')} ({selected_id})"); update_name = st.text_input("Item Name*", value=item.get('name', '')); update_quantity = st.number_input("Quantity*", min_value=0, step=1, value=item.get('quantity', 0)); update_price = st.number_input("Price*", min_value=0.00, step=0.01, format="%.2f", value=item.get('price', 0.00))
                         update_col, delete_col = st.columns(2)
-                        with update_col:
-                            submitted_update = st.form_submit_button("Update Item")
-                        with delete_col:
-                            submitted_delete = st.form_submit_button("Delete Item", type="primary")
-
+                        with update_col: submitted_update = st.form_submit_button("Update Item")
+                        with delete_col: submitted_delete = st.form_submit_button("Delete Item", type="primary")
                         if submitted_update:
-                            if not update_name or update_quantity is None or update_price is None:
-                                st.warning("Please ensure all fields have valid values (*).")
-                            else:
-                                st.session_state.inventory[selected_id] = {
-                                    "name": update_name.strip(),
-                                    "quantity": int(update_quantity),
-                                    "price": float(update_price),
-                                    "last_updated": datetime.datetime.now()
-                                }
-                                st.success(f"✅ Item '{update_name}' ({selected_id}) updated!")
-                                st.rerun()
-
+                            if not update_name or update_quantity is None or update_price is None: st.warning("Please ensure all fields have valid values (*).")
+                            else: st.session_state.inventory[selected_id] = {"name": update_name.strip(), "quantity": int(update_quantity), "price": float(update_price), "last_updated": datetime.datetime.now()}; st.success(f"✅ Item '{update_name}' ({selected_id}) updated!"); st.rerun()
                         if submitted_delete:
                             deleted_name = st.session_state.inventory.get(selected_id, {}).get('name', 'Unknown')
-                            if selected_id in st.session_state.inventory:
-                                del st.session_state.inventory[selected_id]
-                                st.success(f"🗑️ Item '{deleted_name}' ({selected_id}) deleted!")
-                                st.rerun()
-                            else:
-                                st.warning(f"Item {selected_id} was already deleted.")
-                                st.rerun()
-                else:
-                     st.warning(f"Item {selected_id} no longer seems to exist. Refreshing list.")
-                     # Implicitly handled by rerun on next interaction or manual refresh
+                            if selected_id in st.session_state.inventory: del st.session_state.inventory[selected_id]; st.success(f"🗑️ Item '{deleted_name}' ({selected_id}) deleted!"); st.rerun()
+                            else: st.warning(f"Item {selected_id} was already deleted."); st.rerun()
+                else: st.warning(f"Item {selected_id} no longer seems to exist. Refreshing list.")
+
 
 # --- Tab 3: Chatbot ---
 with tab3:
@@ -486,21 +382,46 @@ with tab3:
     else:
         st.info("Ask questions about inventory status, item details, or low stock.", icon="💡")
 
-        # Display chat history
+        # **FIXED:** Display chat history (robustly handling dictionary structure)
         for i, message in enumerate(st.session_state.messages):
-            with st.chat_message(message["role"]):
-                # Display different types of messages appropriately
-                if message["role"] == "tool":
-                     st.markdown(f"```json\n{message.get('content', '{}')}\n```", unsafe_allow_html=True) # Show tool JSON result in code block
-                elif isinstance(message.get("content"), str):
-                     st.markdown(message["content"])
+            role = message.get("role", "unknown") # Safely get role
+            with st.chat_message(role):
+                # --- Tool Result Message ---
+                if role == "tool":
+                    tool_name = message.get('name', 'unknown_function')
+                    tool_content = message.get('content', '{}')
+                    st.markdown(f"🛠️ **Function Result (`{tool_name}`)**")
+                    try: # Try to pretty-print JSON content
+                        parsed_content = json.loads(tool_content)
+                        st.json(parsed_content)
+                    except json.JSONDecodeError: # If not valid JSON, show as plain text/code
+                        st.code(tool_content, language=None)
+
+                # --- Assistant Message Requesting Tool Calls ---
                 elif message.get("tool_calls"):
-                     # Display assistant's intention to call function(s) more clearly
-                     calls = message["tool_calls"]
-                     call_descs = [f"`{tc.function.name}`" for tc in calls] # Just show names for brevity
-                     st.markdown(f"*(Thinking: Need to use function(s): {', '.join(call_descs)})*")
-                else: # Fallback for unexpected message format
-                     st.write(message)
+                    # Display any textual content that might accompany the tool call request
+                    if message.get("content"):
+                        st.markdown(message.get("content"))
+                    # Display the requested tool calls
+                    calls = message.get("tool_calls", []) # Default to empty list
+                    if calls: # Check if list is not empty and has items
+                        st.markdown("```tool_code") # Use a custom language for potential styling
+                        for tc in calls:
+                            # Safely access nested attributes using getattr
+                            func = getattr(tc, 'function', object()) # Get function object safely
+                            func_name = getattr(func, 'name', 'unknown')
+                            func_args = getattr(func, 'arguments', '{}')
+                            st.text(f"Function: {func_name}\nArgs: {func_args}")
+                        st.markdown("```")
+
+                # --- Regular User or Assistant Text Message ---
+                elif message.get("content"):
+                    st.markdown(message.get("content"))
+
+                # --- Fallback for messages with unexpected structure ---
+                else:
+                    st.write(f"*(Message with role '{role}' has no displayable content)*")
+
 
         # Accept user input
         if prompt := st.chat_input("Ask about inventory (e.g., 'low stock', 'details of Laptop')..."):
@@ -516,42 +437,6 @@ with tab3:
                     full_response = run_conversation(prompt)
                     message_placeholder.markdown(full_response or "*Assistant did not generate a response.*")
 
-# --- Optional: Add Persistence Section (Example - requires more setup for cloud) ---
-# with st.sidebar:
-#     st.header("Persistence (Example)")
-#     st.warning("Note: Saving/Loading to CSV is basic and may not work reliably on Streamlit Cloud's ephemeral filesystem without modification (e.g., using cloud storage or db).")
-#     if st.button("Save Inventory (CSV)"):
-#         try:
-#             # Ensure data consistency before saving
-#             df_to_save = pd.DataFrame.from_dict(st.session_state.inventory, orient='index')
-#             # Convert datetime to string for CSV compatibility
-#             if 'last_updated' in df_to_save.columns:
-#                  df_to_save['last_updated'] = df_to_save['last_updated'].astype(str)
-#             df_to_save.to_csv("inventory_snapshot.csv", index_label="ItemID")
-#             st.success("Inventory saved to inventory_snapshot.csv")
-#         except Exception as e:
-#             st.error(f"Failed to save inventory: {e}")
 
-#     if st.button("Load Inventory (CSV)"):
-#         try:
-#             df_loaded = pd.read_csv("inventory_snapshot.csv", index_col="ItemID")
-#             # Convert back to required dictionary format, handling types
-#             loaded_inventory = {}
-#             for item_id, row in df_loaded.iterrows():
-#                  item_data = row.to_dict()
-#                  # Attempt to convert types back carefully
-#                  item_data['quantity'] = int(item_data.get('quantity', 0))
-#                  item_data['price'] = float(item_data.get('price', 0.0))
-#                  try: # Handle datetime conversion errors
-#                      item_data['last_updated'] = pd.to_datetime(item_data.get('last_updated')).to_pydatetime()
-#                  except:
-#                      item_data['last_updated'] = datetime.datetime.now() # Fallback
-#                  loaded_inventory[item_id] = item_data
-
-#             st.session_state.inventory = loaded_inventory
-#             st.success("Inventory loaded from inventory_snapshot.csv")
-#             st.rerun() # Refresh UI
-#         except FileNotFoundError:
-#             st.error("inventory_snapshot.csv not found.")
-#         except Exception as e:
-#             st.error(f"Failed to load inventory: {e}")
+# --- Optional: Add Persistence Section (Example) --- (Keep as before)
+# ...
