@@ -24,17 +24,80 @@ if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Hello! Ask me about the inventory."}]
 
 # --- Helper Functions ---
+import pandas as pd
+import streamlit as st # Assuming st is imported where session_state is used
+import datetime # Assuming datetime is imported
+
+# --- (Keep your existing session state and other code) ---
+
 def get_inventory_df():
-    """Converts the inventory dictionary to a Pandas DataFrame."""
+    """Converts the inventory dictionary to a Pandas DataFrame with proper formatting."""
     if not st.session_state.inventory:
+        # Return an empty DataFrame with the desired FINAL column names if inventory is empty
         return pd.DataFrame(columns=["Item ID", "Name", "Quantity", "Price", "Last Updated"])
+
     # Convert dict to list of dicts with 'Item ID' included
+    # The keys from session_state inventory ('name', 'quantity', 'price', 'last_updated')
+    # become the initial column names.
     data_list = [{'Item ID': k, **v} for k, v in st.session_state.inventory.items()]
     df = pd.DataFrame(data_list)
-    # Format columns for better display
-    df['Price'] = df['Price'].map('${:,.2f}'.format)
-    df['Last Updated'] = pd.to_datetime(df['last_updated']).dt.strftime('%Y-%m-%d %H:%M:%S')
-    return df[["Item ID", "Name", "Quantity", "Price", "Last Updated"]]
+
+    # --- Safely access and format columns using their ACTUAL names (lowercase) ---
+
+    # Format Price column if it exists
+    if 'price' in df.columns:
+        # Ensure it's numeric before formatting, handle errors gracefully
+        df['price'] = pd.to_numeric(df['price'], errors='coerce')
+        # Apply formatting, keep original 'price' column, create a formatted one
+        df['Formatted Price'] = df['price'].apply(lambda x: '${:,.2f}'.format(x) if pd.notna(x) else 'N/A')
+    else:
+        df['Formatted Price'] = 'N/A' # Handle case where 'price' column might be missing
+
+    # Format Last Updated column if it exists
+    if 'last_updated' in df.columns:
+         # Apply formatting, keep original 'last_updated', create a formatted one
+         df['Formatted Last Updated'] = pd.to_datetime(df['last_updated'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+         # Handle potential NaT (Not a Time) from coerce
+         df['Formatted Last Updated'] = df['Formatted Last Updated'].fillna('N/A')
+    else:
+         df['Formatted Last Updated'] = 'N/A'
+
+    # --- Select and Rename columns for FINAL display ---
+    # Define the columns we want to display and their desired final names
+    display_columns_map = {
+        "Item ID": "Item ID",
+        "name": "Name",          # Original column name: desired display name
+        "quantity": "Quantity",
+        "Formatted Price": "Price", # Use the formatted column, name it 'Price'
+        "Formatted Last Updated": "Last Updated"
+    }
+
+    # Filter the map to only include columns that actually exist in the df
+    final_columns_ordered = []
+    columns_to_rename = {}
+    for original_col, display_name in display_columns_map.items():
+        if original_col in df.columns:
+            final_columns_ordered.append(original_col)
+            columns_to_rename[original_col] = display_name
+
+    # Select only the columns we intend to display
+    df_display = df[final_columns_ordered]
+
+    # Rename the selected columns for display
+    df_display = df_display.rename(columns=columns_to_rename)
+
+    # Ensure the columns are in the desired order for the final output DataFrame
+    # This handles cases where a column might have been missing entirely
+    final_display_order = ["Item ID", "Name", "Quantity", "Price", "Last Updated"]
+    df_display = df_display.reindex(columns=final_display_order, fill_value='N/A')
+
+
+    return df_display
+
+# --- (Rest of your Streamlit app code) ---
+
+# Make sure the line calling the function remains the same:
+# st.dataframe(get_inventory_df(), use_container_width=True, hide_index=True)
 
 def generate_item_id():
     """Generates a unique item ID."""
