@@ -495,6 +495,7 @@ def run_conversation(user_prompt):
                                 st.write("missing item price")
 
                             st.write("after checking missing values:", missing_keys)
+                            st.write(json.dumps({"status": "error_missing_info", "message": f"Required information missing from your request: {', '.join(missing_keys)}."}))
                             if missing_keys: 
                                 # **Clear Error Message for LLM**
                                 # Don't call the Python function. Instruct the LLM to query the user.
