@@ -457,25 +457,36 @@ def run_conversation(user_prompt):
                              function_response = function_to_call()
 
                         elif function_name == "add_inventory_item":
-                            # **Strict Check for Required Args BEFORE calling function**
-                            name = function_args.get("item_name")
+                            # **Refined Check for Required Args Provided by LLM**
+                            # We explicitly check if the LLM included these keys in its arguments payload.
+                            # We rely on the 'required' field in the tool definition, but add this check
+                            # to prevent the LLM from proceeding with defaults/guesses if it ignores 'required'.
+
+                            name = function_args.get("item_name") # Use .get() for safety
                             qty = function_args.get("quantity")
                             prc = function_args.get("price")
-                            missing_args = []
-                            if name is None: missing_args.append("item_name")
-                            if qty is None: missing_args.append("quantity")
-                            if prc is None: missing_args.append("price")
 
-                            if missing_args:
-                                # Don't call the function, tell LLM what's missing
+                            # Check which required keys are actually missing from the LLM's provided arguments
+                            # (i.e., the key itself is absent or the value is None)
+                            missing_keys = []
+                            if "item_name" not in function_args or name is None:
+                                missing_keys.append("item_name")
+                            if "quantity" not in function_args or qty is None:
+                                missing_keys.append("quantity")
+                            if "price" not in function_args or prc is None:
+                                missing_keys.append("price")
+
+                            if missing_keys:
+                                # **Clear Error Message for LLM**
+                                # Don't call the Python function. Instruct the LLM to query the user.
+                                error_detail = f"Required information missing from your request: {', '.join(missing_keys)}."
+                                instruction = "Do NOT proceed with adding the item. Do NOT guess or use default values (like 0). You MUST ask the user to provide the missing details."
                                 function_response = json.dumps({
-                                    "status": "error",
-                                    "message": f"Cannot add item. Missing required information: {', '.join(missing_args)}. Please ask the user for these details."
+                                    "status": "error_missing_info", # More specific status
+                                    "message": f"Action incomplete. {error_detail} {instruction}"
                                 })
-                            else:
-                                # All args seem present, proceed to call the function (which has internal validation)
-                                function_response = function_to_call(item_name=name, quantity=qty, price=prc)
-
+                                # Optional: Log this attempt for debugging
+                                # print(f"DEBUG: LLM tried 'add_item' missing {missing_keys}. Args received: {function_args}")
                         elif function_name == "update_inventory_item":
                             identifier = function_args.get("item_identifier")
                             new_name = function_args.get("new_name") # Will be None if not provided
