@@ -207,56 +207,141 @@ def find_low_stock_items(quantity_threshold=10):
             "status": "found", "threshold": quantity_threshold, "items": low_stock_items
         })
 
+# --- Inventory Functions Accessible by LLM (Tools) ---
+# ... (Keep existing functions: get_inventory_summary, get_item_details, find_low_stock_items) ...
+
 def add_inventory_item(item_name, quantity, price):
     """
-    Adds a new item to the inventory.
-    Args:
-        item_name (str): The name for the new item.
-        quantity (int): The initial quantity of the new item. Must be non-negative.
-        price (float): The price per unit for the new item. Must be non-negative.
-    Returns a JSON string indicating success or failure, including the new Item ID if successful.
+    Adds a new item to the inventory. Requires name, quantity, and price.
+    Args: item_name (str), quantity (int), price (float).
+    Returns JSON string confirming success/failure. Includes new Item ID if successful.
     """
     inventory = st.session_state.inventory
     item_name = item_name.strip()
 
-    # --- Basic Input Validation ---
+    # --- Input Validation within the function ---
     if not item_name:
-        return json.dumps({"status": "error", "message": "Item name cannot be empty."})
+        return json.dumps({"status": "validation_error", "message": "Cannot add item: Item name is missing or empty."})
     try:
         quantity = int(quantity)
         if quantity < 0:
-            return json.dumps({"status": "error", "message": "Quantity cannot be negative."})
+            return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Quantity ({quantity}) cannot be negative."})
     except (ValueError, TypeError):
-        return json.dumps({"status": "error", "message": f"Invalid quantity provided: {quantity}. Must be an integer."})
+        return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Invalid quantity value '{quantity}'. It must be a whole number."})
     try:
         price = float(price)
         if price < 0.0:
-             return json.dumps({"status": "error", "message": "Price cannot be negative."})
+             return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Price (${price}) cannot be negative."})
     except (ValueError, TypeError):
-         return json.dumps({"status": "error", "message": f"Invalid price provided: {price}. Must be a number."})
+         return json.dumps({"status": "validation_error", "message": f"Cannot add '{item_name}': Invalid price value '{price}'. It must be a number."})
 
     # --- Generate ID and Add ---
     try:
-        new_id = generate_item_id() # Use the existing helper function
+        new_id = generate_item_id()
         inventory[new_id] = {
-            "name": item_name,
-            "quantity": quantity,
-            "price": price,
+            "name": item_name, "quantity": quantity, "price": price,
             "last_updated": datetime.datetime.now()
         }
-        # Success: Return confirmation including the new details
         return json.dumps({
             "status": "success",
             "message": f"Successfully added '{item_name}' (ID: {new_id}) with quantity {quantity} and price ${price:.2f}.",
-            "item_id": new_id,
-            "name": item_name,
-            "quantity": quantity,
-            "price": price
+            "item_id": new_id, "name": item_name, "quantity": quantity, "price": price
         })
     except Exception as e:
-        # Catch unexpected errors during addition
-        return json.dumps({"status": "error", "message": f"An unexpected error occurred while adding the item: {str(e)}"})
+        return json.dumps({"status": "error", "message": f"An unexpected error occurred adding item: {str(e)}"})
 
+
+def update_inventory_item(item_identifier, new_name=None, new_quantity=None, new_price=None):
+    """
+    Updates an existing inventory item identified by its name or ID.
+    At least one field (new_name, new_quantity, new_price) must be provided for update.
+    Args:
+        item_identifier (str): The name or ID of the item to update.
+        new_name (str, optional): The new name for the item.
+        new_quantity (int, optional): The new quantity. Must be non-negative.
+        new_price (float, optional): The new price. Must be non-negative.
+    Returns a JSON string indicating success or failure.
+    """
+    inventory = st.session_state.inventory
+    identifier_norm = item_identifier.strip()
+
+    # --- Find the item ---
+    item_id_to_update = None
+    original_item = None
+
+    # Check by ID
+    if identifier_norm in inventory:
+        item_id_to_update = identifier_norm
+        original_item = inventory[item_id_to_update]
+    else:
+        # Check by name (case-insensitive)
+        identifier_lower = identifier_norm.lower()
+        for item_id, details in inventory.items():
+            if details.get('name', '').lower() == identifier_lower:
+                item_id_to_update = item_id
+                original_item = details
+                break
+
+    if not item_id_to_update or not original_item:
+        return json.dumps({"status": "not_found", "message": f"Could not find item '{item_identifier}' to update."})
+
+    # --- Check if any update field was provided ---
+    if new_name is None and new_quantity is None and new_price is None:
+        return json.dumps({"status": "validation_error", "message": f"No update provided for '{original_item.get('name', item_id_to_update)}'. Please specify a new name, quantity, or price."})
+
+    # --- Validate provided updates ---
+    updates_to_apply = {}
+    validation_errors = []
+
+    if new_name is not None:
+        new_name = new_name.strip()
+        if not new_name:
+            validation_errors.append("New name cannot be empty.")
+        else:
+            updates_to_apply["name"] = new_name
+
+    if new_quantity is not None:
+        try:
+            new_quantity = int(new_quantity)
+            if new_quantity < 0:
+                validation_errors.append(f"New quantity ({new_quantity}) cannot be negative.")
+            else:
+                updates_to_apply["quantity"] = new_quantity
+        except (ValueError, TypeError):
+            validation_errors.append(f"Invalid new quantity value '{new_quantity}'. Must be a whole number.")
+
+    if new_price is not None:
+        try:
+            new_price = float(new_price)
+            if new_price < 0.0:
+                validation_errors.append(f"New price (${new_price}) cannot be negative.")
+            else:
+                updates_to_apply["price"] = new_price
+        except (ValueError, TypeError):
+            validation_errors.append(f"Invalid new price value '{new_price}'. Must be a number.")
+
+    if validation_errors:
+        error_message = f"Cannot update '{original_item.get('name', item_id_to_update)}': " + " ".join(validation_errors)
+        return json.dumps({"status": "validation_error", "message": error_message})
+
+    # --- Apply Updates ---
+    try:
+        updated_item_data = original_item.copy() # Start with existing data
+        updated_item_data.update(updates_to_apply) # Overwrite with validated changes
+        updated_item_data["last_updated"] = datetime.datetime.now() # Update timestamp
+
+        inventory[item_id_to_update] = updated_item_data # Save back to inventory
+
+        return json.dumps({
+            "status": "success",
+            "message": f"Successfully updated item '{updated_item_data.get('name')}' (ID: {item_id_to_update}).",
+            "item_id": item_id_to_update,
+            "updated_fields": list(updates_to_apply.keys()), # List fields that were changed
+            "new_data": {k: updated_item_data.get(k) for k in ["name", "quantity", "price"]} # Show current state
+        })
+    except Exception as e:
+         return json.dumps({"status": "error", "message": f"An unexpected error occurred updating item: {str(e)}"})
+    
 
 # --- Define Tools for LLM ---
 # Map tool names to actual Python functions
@@ -265,81 +350,50 @@ available_functions = {
     "get_item_details": get_item_details,
     "find_low_stock_items": find_low_stock_items,
     "add_inventory_item": add_inventory_item, 
+    "update_inventory_item": update_inventory_item,
 }
 
 # Define tool structure for the LLM API call
 tools = [
-    # ... (keep existing tool definitions for get_inventory_summary, get_item_details, find_low_stock_items) ...
+    # ... (keep existing definitions for get_summary, get_details, find_low_stock, add_item) ...
+    { "type": "function", "function": { "name": "get_inventory_summary", "description": "Get a summary of the inventory status: total distinct items and total quantity." }},
+    { "type": "function", "function": { "name": "get_item_details", "description": "Get details (quantity, price) for a specific item by its name or Item ID.", "parameters": { "type": "object", "properties": { "item_identifier": { "type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item." }}, "required": ["item_identifier"] }}},
+    { "type": "function", "function": { "name": "find_low_stock_items", "description": "Find items in the inventory that are low in stock, based on a quantity threshold.", "parameters": { "type": "object", "properties": { "quantity_threshold": { "type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user." }}, "required": [] }}},
+    { "type": "function", "function": { "name": "add_inventory_item", "description": "Adds a new item to the inventory system. Requires the item's name, quantity, and price.", "parameters": { "type": "object", "properties": { "item_name": { "type": "string", "description": "The name of the new item to add." }, "quantity": { "type": "integer", "description": "The initial stock quantity for the new item." }, "price": { "type": "number", "description": "The price per unit for the new item." }}, "required": ["item_name", "quantity", "price"] }}},
+
+    # --- NEW UPDATE ITEM TOOL DEFINITION ---
     {
         "type": "function",
         "function": {
-            "name": "get_inventory_summary",
-            "description": "Get a summary of the inventory status: total distinct items and total quantity.",
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_item_details",
-            "description": "Get details (quantity, price) for a specific item by its name or Item ID.",
+            "name": "update_inventory_item",
+            "description": "Updates an existing item in the inventory. Requires the item's current name or ID, and at least one field to update (new name, new quantity, or new price).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "item_identifier": {
                         "type": "string",
-                        "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item.",
+                        "description": "The current name or Item ID of the item to be updated."
                     },
-                },
-                "required": ["item_identifier"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "find_low_stock_items",
-            "description": "Find items in the inventory that are low in stock, based on a quantity threshold.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "quantity_threshold": {
-                        "type": "integer",
-                        "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user.",
-                    },
-                },
-                "required": [], # Threshold is optional
-            },
-        },
-    },
-    # --- NEW TOOL DEFINITION ---
-    {
-        "type": "function",
-        "function": {
-            "name": "add_inventory_item",
-            "description": "Adds a new item to the inventory system. Requires the item's name, quantity, and price.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "item_name": {
+                    "new_name": {
                         "type": "string",
-                        "description": "The name of the new item to add."
+                        "description": "The new name for the item (optional)."
                     },
-                    "quantity": {
+                    "new_quantity": {
                         "type": "integer",
-                        "description": "The initial stock quantity for the new item."
+                        "description": "The new stock quantity for the item (optional)."
                     },
-                    "price": {
-                        "type": "number", # Use 'number' for flexibility (allows float)
-                        "description": "The price per unit for the new item."
+                    "new_price": {
+                        "type": "number",
+                        "description": "The new price per unit for the item (optional)."
                     }
                 },
-                "required": ["item_name", "quantity", "price"] # All are mandatory to add an item
+                # Only the identifier is strictly required to find the item
+                "required": ["item_identifier"]
             },
         },
     },
-    # --- END OF NEW TOOL ---
+    # --- END OF UPDATE ITEM TOOL ---
 ]
-
 # --- LLM Interaction Logic ---
 def run_conversation(user_prompt):
     """Sends conversation to OpenRouter, handles tool calls, returns final response."""
@@ -372,40 +426,87 @@ def run_conversation(user_prompt):
             st.session_state.messages.append(assistant_message_dict)
 
             # Execute tools and collect results
+            # Inside the `if tool_calls:` block, replace the tool execution loop (`for tool_call in tool_calls:`)
+# with this enhanced version:
+
+            # Execute tools and collect results
             tool_results_messages = []
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
                 function_to_call = available_functions.get(function_name)
                 function_args_str = tool_call.function.arguments
+                function_response = None # Initialize response variable
 
                 if not function_to_call:
-                    function_response = json.dumps({"error": f"Tool '{function_name}' not found."})
+                    function_response = json.dumps({"status": "error", "message": f"Tool '{function_name}' not found or not implemented."})
                 else:
                     try:
                         function_args = json.loads(function_args_str)
-                        # Call function with appropriate args
+
+                        # --- Specific Function Argument Handling ---
                         if function_name == "find_low_stock_items":
                              threshold = function_args.get("quantity_threshold", 10)
                              function_response = function_to_call(quantity_threshold=threshold)
+
                         elif function_name == "get_item_details":
                              identifier = function_args.get("item_identifier")
                              if identifier: function_response = function_to_call(item_identifier=identifier)
-                             else: function_response = json.dumps({"error": "Missing 'item_identifier' argument."})
+                             else: function_response = json.dumps({"status": "error", "message": "Missing 'item_identifier' argument for get_item_details."})
+
                         elif function_name == "get_inventory_summary":
                              function_response = function_to_call()
+
                         elif function_name == "add_inventory_item":
-                            # Extract required args for add_inventory_item
+                            # **Strict Check for Required Args BEFORE calling function**
                             name = function_args.get("item_name")
                             qty = function_args.get("quantity")
                             prc = function_args.get("price")
-                            # Check if all required args were provided by the LLM
-                            if name is not None and qty is not None and prc is not None:
-                                function_response = function_to_call(item_name=name, quantity=qty, price=prc)
-                        else: function_response = json.dumps({"error": f"Unhandled arguments for function {function_name}"})
-                    except json.JSONDecodeError: function_response = json.dumps({"error": f"Invalid arguments format from LLM for {function_name}: {function_args_str}"})
-                    except Exception as e: function_response = json.dumps({"error": f"Error executing {function_name}: {str(e)}"})
+                            missing_args = []
+                            if name is None: missing_args.append("item_name")
+                            if qty is None: missing_args.append("quantity")
+                            if prc is None: missing_args.append("price")
 
-                # Prepare message for API with tool result (always a dictionary)
+                            if missing_args:
+                                # Don't call the function, tell LLM what's missing
+                                function_response = json.dumps({
+                                    "status": "error",
+                                    "message": f"Cannot add item. Missing required information: {', '.join(missing_args)}. Please ask the user for these details."
+                                })
+                            else:
+                                # All args seem present, proceed to call the function (which has internal validation)
+                                function_response = function_to_call(item_name=name, quantity=qty, price=prc)
+
+                        elif function_name == "update_inventory_item":
+                            identifier = function_args.get("item_identifier")
+                            new_name = function_args.get("new_name") # Will be None if not provided
+                            new_qty = function_args.get("new_quantity") # Will be None if not provided
+                            new_prc = function_args.get("new_price") # Will be None if not provided
+
+                            if not identifier:
+                                function_response = json.dumps({"status": "error", "message": "Missing 'item_identifier' argument for update_inventory_item."})
+                            elif new_name is None and new_qty is None and new_prc is None:
+                                # Check if at least one update field was given by LLM
+                                function_response = json.dumps({"status": "error", "message": "Cannot update item. No new name, quantity, or price was specified. Ask the user what they want to change."})
+                            else:
+                                # Call update function with provided args (function handles internal validation)
+                                function_response = function_to_call(
+                                    item_identifier=identifier,
+                                    new_name=new_name,
+                                    new_quantity=new_qty,
+                                    new_price=new_prc
+                                )
+
+                        else: # Fallback for any unexpected function name
+                            function_response = json.dumps({"status": "error", "message": f"Function '{function_name}' is recognized but argument handling is not implemented."})
+
+                    except json.JSONDecodeError: function_response = json.dumps({"status": "error", "message": f"Invalid arguments format from LLM for {function_name}: {function_args_str}"})
+                    except Exception as e: function_response = json.dumps({"status": "error", "message": f"Error preparing to execute {function_name}: {str(e)}"})
+
+
+                # Prepare message for API with tool result (ensure response is not None)
+                if function_response is None:
+                    function_response = json.dumps({"status": "error", "message": f"Execution failed to produce a result for {function_name}."})
+
                 tool_results_messages.append({
                     "tool_call_id": tool_call.id, "role": "tool", "name": function_name,
                     "content": function_response, # Function output (JSON string)
