@@ -475,10 +475,15 @@ def run_conversation(user_prompt):
                             missing_keys = []
                             if "item_name" not in function_args or name is None:
                                 missing_keys.append("item_name")
+                                st.write("missing item name")
                             if "quantity" not in function_args or qty is None:
                                 missing_keys.append("quantity")
+                                st.write("missing item quantity")
+
                             if "price" not in function_args or prc is None:
                                 missing_keys.append("price")
+                                st.write("missing item price")
+
 
                             if missing_keys: 
                                 # **Clear Error Message for LLM**
