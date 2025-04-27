@@ -484,7 +484,7 @@ def run_conversation(user_prompt):
                                 missing_keys.append("price")
                                 st.write("missing item price")
 
-
+                            st.write("after checking missing values:", missing_keys)
                             if missing_keys: 
                                 # **Clear Error Message for LLM**
                                 # Don't call the Python function. Instruct the LLM to query the user.
