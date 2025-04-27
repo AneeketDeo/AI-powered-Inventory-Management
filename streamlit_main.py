@@ -1,5 +1,7 @@
 # --- Core Libraries ---
 import os
+import sys
+import traceback
 import streamlit as st
 import pandas as pd
 import datetime
@@ -249,7 +251,15 @@ def add_inventory_item(item_name, quantity, price):
             "item_id": new_id, "name": item_name, "quantity": quantity, "price": price
         })
     except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        last_trace = traceback.extract_tb(exc_traceback)[-1]
+        filename, line_number, function_name, text = last_trace
+
+        st.write(f"Exception occurred in file: {filename}, line {line_number}, in {function_name}")
+        st.write(f"Code causing error: {text}")
+        st.write(f"Error type: {exc_type.__name__}, Message: {e}")
         return json.dumps({"status": "error", "message": f"An unexpected error occurred adding item: {str(e)}"})
+    
 
 
 def update_inventory_item(item_identifier, new_name=None, new_quantity=None, new_price=None):
