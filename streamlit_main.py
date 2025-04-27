@@ -20,6 +20,29 @@ st.set_page_config(
 )
 st.title("📦 AI-Powered Inventory Management")
 
+# --- Custom CSS/JS ---
+# For sticky sidebar header and potentially Go-to-Top JS later
+st.markdown("""
+    <style>
+        /* Make sidebar header sticky */
+        div[data-testid="stSidebarNav"] ul {
+            position: sticky;
+            top: 0;
+            background: #F0F2F6; /* Match Streamlit's light theme sidebar background */
+            z-index: 999;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        /* Adjust for dark theme */
+        [data-theme="dark"] div[data-testid="stSidebarNav"] ul {
+            background: #1E1E1E; /* Example dark theme background */
+        }
+        /* Hide the Streamlit "hamburger" menu since we have sidebar nav */
+        /* button[title="View fullscreen"] { display: none; } */ /* Optional: Hide fullscreen */
+    </style>
+    """, unsafe_allow_html=True)
+
+
 # --- OpenRouter Configuration ---
 # Read the App URL from secrets - YOU MUST SET THIS in your Streamlit Cloud secrets!
 # Example: APP_URL="https://your-app-name.streamlit.app"
@@ -60,6 +83,14 @@ except openai.APIConnectionError as e:
 except Exception as e:
     st.sidebar.error(f"Error initializing OpenRouter: {e}. Chatbot disabled.", icon="⚠️")
 
+
+# Helper function to reset chat history
+def reset_chat_history():
+    assistant_greeting = f"Hello! Ask me about inventory (via {llm_provider})." if llm_enabled else "Hello! LLM inactive. Ask about inventory."
+    st.session_state.messages = [{"role": "assistant", "content": assistant_greeting}]
+
+if "messages" not in st.session_state:
+    reset_chat_history()
 
 # --- Session State Initialization ---
 # Inventory Data (In-memory dictionary)
@@ -684,3 +715,197 @@ with tab3:
 
 # --- Optional: Add Persistence Section (Example) --- (Keep as before)
 # ...
+
+
+# --- Sidebar ---
+with st.sidebar:
+    st.title("⚙️ Controls & Info")
+    st.divider()
+
+    # --- LLM Connection Status ---
+    st.subheader("LLM Status")
+    if llm_enabled:
+        st.success(f"Connected via {llm_provider}", icon="✅")
+    else:
+        # Check specific errors if client init failed
+        error_message = "LLM connection failed. "
+        try:
+            # Attempt to access secrets again to give specific feedback
+            st.secrets["OPENROUTER_API_KEY"]
+            # If key exists, error must be connection/auth
+            error_message += "Check API Key validity or OpenRouter status."
+        except KeyError:
+             error_message += "`OPENROUTER_API_KEY` missing in secrets."
+        except Exception as e:
+            error_message += f"Unexpected init error: {e}"
+        st.error(error_message, icon="⚠️")
+    st.caption(f"Referrer URL: {OPENROUTER_REFERRER_URL}")
+    st.divider()
+
+    # --- Navigation ---
+    st.subheader("Navigation")
+    page_options = ["📊 View Inventory", "📝 Manage Items", "💬 Chatbot"]
+    selected_page = st.radio(
+        "Go to:",
+        page_options,
+        label_visibility="collapsed" # Hide the 'Go to:' label itself
+    )
+    st.divider()
+
+    # --- Chat Controls ---
+    st.subheader("Chat Controls")
+    if st.button("Clear Chat History", key="clear_chat"):
+        reset_chat_history()
+        st.success("Chat history cleared.")
+        st.rerun() # Rerun to reflect the cleared chat immediately
+
+    # --- Go to Top Button ---
+    st.divider()
+    st.subheader("Page Controls")
+    if st.button("⬆️ Go to Top", key="go_top"):
+        # Inject JavaScript to scroll to top
+        st.markdown(
+            """
+            <script>
+                window.scrollTo(0, 0);
+            </script>
+            """, unsafe_allow_html=True
+        )
+    st.divider()
+    st.caption("AI Inventory Manager v1.1")
+
+
+# --- Main Page Content (Conditional based on Sidebar Selection) ---
+if selected_page == "📊 View Inventory":
+    st.header("📊 Current Inventory Status")
+    st.dataframe(get_inventory_df(), use_container_width=True, hide_index=True)
+    if st.button("Refresh View", key="refresh_view"):
+        st.rerun()
+
+elif selected_page == "📝 Manage Items":
+    st.header("📝 Manage Inventory Items")
+    st.info("Add, update, or delete items from the inventory list.", icon="ℹ️")
+    col_add, col_manage = st.columns(2)
+    # Add Form
+    with col_add:
+        st.subheader("➕ Add New Item")
+        with st.form("add_item_form", clear_on_submit=True):
+            new_name = st.text_input("Item Name*")
+            new_quantity = st.number_input("Quantity*", min_value=0, step=1, value=0) # Allow 0 here for manual entry
+            new_price = st.number_input("Price*", min_value=0.00, step=0.01, value=0.00, format="%.2f") # Allow 0 here
+            submitted_add = st.form_submit_button("Add Item")
+            if submitted_add:
+                if not new_name: st.warning("Item name is required.")
+                # Allow 0 quantity/price for manual adding, but chatbot requires positive
+                elif new_quantity is None or new_price is None: st.warning("Quantity and Price are required.")
+                else:
+                    # Check for duplicate name before adding via form
+                    name_exists = any(details.get('name','').lower() == new_name.strip().lower() for details in st.session_state.inventory.values())
+                    if name_exists:
+                        st.error(f"Item named '{new_name}' already exists. Use the update section.")
+                    else:
+                        new_id = generate_item_id()
+                        st.session_state.inventory[new_id] = {"name": new_name.strip(), "quantity": int(new_quantity), "price": float(new_price), "last_updated": datetime.datetime.now()}
+                        st.success(f"✅ Item '{new_name}' ({new_id}) added!")
+                        st.rerun()
+    # Update/Delete Form
+    with col_manage:
+        st.subheader("✏️ Update / 🗑️ Delete Item")
+        if not st.session_state.inventory: st.info("Inventory empty.")
+        else:
+            item_options = [(f"{details.get('name', 'N/A')} ({item_id})", item_id) for item_id, details in st.session_state.inventory.items()]; item_options.sort(); item_options.insert(0, ("-- Select Item --", None))
+            selected_option = st.selectbox("Select Item", options=item_options, format_func=lambda option: option[0], key="manage_select"); selected_id = selected_option[1]
+            if selected_id:
+                item = st.session_state.inventory.get(selected_id)
+                if item:
+                    with st.form(f"update_delete_{selected_id}_form"):
+                        st.write(f"**Managing:** {item.get('name', 'N/A')} ({selected_id})")
+                        update_name = st.text_input("Name*", value=item.get('name', ''))
+                        update_quantity = st.number_input("Qty*", min_value=0, step=1, value=item.get('quantity', 0))
+                        update_price = st.number_input("Price*", min_value=0.00, step=0.01, format="%.2f", value=item.get('price', 0.00))
+                        uc, dc = st.columns(2);
+                        with uc: submitted_update = st.form_submit_button("Update")
+                        with dc: submitted_delete = st.form_submit_button("Delete", type="primary")
+                        if submitted_update:
+                            if not update_name: st.warning("Item name required.")
+                            elif update_quantity is None or update_price is None: st.warning("Quantity and Price required.")
+                            else: # Check if name changed and if new name conflicts
+                                name_changed = update_name.strip().lower() != item.get('name','').lower()
+                                name_conflict = False
+                                if name_changed:
+                                    name_conflict = any(details.get('name','').lower() == update_name.strip().lower() for id, details in st.session_state.inventory.items() if id != selected_id)
+                                if name_conflict:
+                                    st.error(f"Cannot update: Another item with name '{update_name}' already exists.")
+                                else:
+                                    st.session_state.inventory[selected_id] = {"name": update_name.strip(), "quantity": int(update_quantity), "price": float(update_price), "last_updated": datetime.datetime.now()}
+                                    st.success(f"✅ Updated '{update_name}' ({selected_id})!")
+                                    st.rerun()
+                        if submitted_delete:
+                            deleted_name = st.session_state.inventory.get(selected_id, {}).get('name', 'Unknown')
+                            if selected_id in st.session_state.inventory: del st.session_state.inventory[selected_id]; st.success(f"🗑️ Deleted '{deleted_name}' ({selected_id})!"); st.rerun()
+                            else: st.warning(f"Item {selected_id} already deleted."); st.rerun()
+                else: st.warning(f"Item {selected_id} not found. Refreshing list.")
+
+elif selected_page == "💬 Chatbot":
+    st.header(f"💬 Chat with Inventory Bot ({llm_provider})")
+    if not llm_enabled: st.warning(f"LLM client ({llm_provider}) failed. Chatbot functionality is disabled. Check secrets.", icon="⚠️")
+    else:
+        st.info("Ask about status, details, low stock. Add/Update items (e.g., 'add 50 pencils at $0.25 each', 'update laptop quantity to 12').", icon="💡")
+        # Display chat history (robust)
+        chat_container = st.container() # Use a container for chat messages
+        with chat_container:
+            for i, message in enumerate(st.session_state.messages):
+                role = message.get("role", "unknown");
+                with st.chat_message(role):
+                    if role == "tool": 
+                        tool_name = message.get('name', 'unknown'); tool_content = message.get('content', '{}'); 
+                        st.markdown(f"🛠️ **Func Result (`{tool_name}`)**") 
+                        try: 
+                            parsed_content = json.loads(tool_content); st.json(parsed_content) 
+                        except:
+                            json.JSONDecodeError: st.code(tool_content, language=None)
+                    elif message.get("tool_calls"):
+                        if message.get("content"): 
+                            st.markdown(message.get("content"))
+                        calls = message.get("tool_calls", [])
+                        if calls: 
+                            st.markdown("```tool_code") 
+                            for tc in calls: func = getattr(tc, 'function', object()); func_name = getattr(func, 'name', 'unknown'); func_args = getattr(func, 'arguments', '{}'); st.text(f"Func: {func_name}\nArgs: {func_args}"); \
+                            st.markdown("```")
+                    elif message.get("content"): st.markdown(message.get("content"))
+                    else: st.write(f"*(Msg role '{role}' empty)*")
+
+        # Accept user input (place it outside the message display loop)
+        if prompt := st.chat_input("Ask about inventory, add/update items..."):
+            # Add user message to history and display it
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with chat_container: # Display inside the container too
+                 with st.chat_message("user"):
+                    st.markdown(prompt)
+
+            # Get assistant response and display it
+            with chat_container: # Display inside the container
+                with st.chat_message("assistant"):
+                    message_placeholder = st.empty();
+                    with st.spinner("🤔 Thinking..."):
+                        full_response = run_conversation(prompt);
+                        message_placeholder.markdown(full_response or "*No response generated.*")
+            # Automatically scroll chat to bottom (often needed after adding messages)
+            # This JS is a bit hacky but common in Streamlit for chat
+            st.components.v1.html("""
+                <script>
+                // Find the container holding the chat messages by data-testid
+                const chatContainer = window.parent.document.querySelector('div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"]');
+                // Alternative selector if the above doesn't work (inspect element to find a reliable parent)
+                // const chatContainer = window.parent.document.querySelector('section.main > div.block-container');
+
+                if (chatContainer) {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+                </script>
+            """, height=0) # Height 0 so the component itself isn't visible
+
+
+# Default case (shouldn't happen with radio buttons but good practice)
+else:
+    st.error("Invalid page selected.")
