@@ -223,6 +223,7 @@ def add_inventory_item(item_name, quantity, price):
     item_name = item_name.strip()
 
     # --- Input Validation within the function ---
+    st.write("Validating input...")
     if not item_name:
         return json.dumps({"status": "validation_error", "message": "Cannot add item: Item name is missing or empty."})
     try:
