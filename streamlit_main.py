@@ -781,7 +781,7 @@ elif selected_page == "💬 Chatbot":
             button_css = """
                 <style>
                     #stGoToTopBtn {
-                        display: none; /* Hidden by default */
+ /* Hidden by default */
                         position: fixed;
                         bottom: 30px; /* Slightly higher */
                         right: 30px;
