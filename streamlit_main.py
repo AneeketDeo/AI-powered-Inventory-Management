@@ -775,71 +775,146 @@ elif selected_page == "💬 Chatbot":
 
             # Inside the `elif selected_page == "💬 Chatbot":` block:
 
-            # --- Floating Go To Top Button (Chatbot Page Only) ---
-            # Define the HTML, CSS, and JS for the button
-            button_html = """
+
+            # --- Floating Go To Top Button (Chatbot Page Only - Robust JS Approach) ---
+            # Define the CSS styles separately for clarity
+            button_css = """
                 <style>
-                    #goToTopBtn {
+                    #stGoToTopBtn {
                         display: none; /* Hidden by default */
-                        position: fixed; /* Fixed/sticky position */
-                        bottom: 20px; /* Place at the bottom */
-                        right: 30px; /* Place on the right */
-                        z-index: 999; /* Make sure it does not overlap other elements */
-                        border: none; /* Remove borders */
-                        outline: none; /* Remove outline */
-                        background-color: #555; /* Background color */
-                        color: white; /* Text color */
-                        cursor: pointer; /* Add a mouse pointer on hover */
-                        padding: 10px 15px; /* Some padding */
-                        border-radius: 10px; /* Rounded corners */
-                        font-size: 18px; /* Increase font size */
-                        opacity: 0.7; /* Slightly transparent */
-                        transition: opacity 0.3s, background-color 0.3s; /* Smooth transitions */
+                        position: fixed;
+                        bottom: 30px; /* Slightly higher */
+                        right: 30px;
+                        z-index: 1001; /* Ensure high z-index */
+                        border: none;
+                        outline: none;
+                        background-color: #007bff; /* Use a primary color */
+                        color: white;
+                        cursor: pointer;
+                        padding: 12px 16px; /* Slightly larger padding */
+                        border-radius: 50%; /* Make it round */
+                        font-size: 20px; /* Larger icon */
+                        line-height: 1; /* Ensure icon is centered vertically */
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Add subtle shadow */
+                        opacity: 0.8;
+                        transition: opacity 0.3s, background-color 0.3s;
                     }
 
-                    #goToTopBtn:hover {
-                        background-color: #007bff; /* Darker background on hover */
-                        opacity: 1; /* Fully opaque on hover */
+                    #stGoToTopBtn:hover {
+                        background-color: #0056b3; /* Darker shade on hover */
+                        opacity: 1;
                     }
                 </style>
+                """
 
-                <button onclick="scrollToTopFunction()" id="goToTopBtn" title="Go to top">⬆️ Top</button>
-
+            # Define the JavaScript to create, manage, and handle the button
+            button_js = """
                 <script>
-                    // Get the button
-                    var mybutton = document.getElementById("goToTopBtn");
+                    // Function to create the button if it doesn't exist
+                    function createGoToTopButton() {
+                        if (document.getElementById("stGoToTopBtn")) {
+                            // Button already exists, ensure event listeners are attached
+                            attachScrollListener();
+                            return;
+                        }
 
-                    // When the user scrolls down 100px from the top of the document, show the button
-                    window.onscroll = function() {scrollFunction()};
-                    // Need to access the correct scrollable element in Streamlit
-                    // The main content area might be 'section.main .block-container' or similar
-                    // Let's try attaching to window first, might need adjustment
-                    // window.parent.document.querySelector('section.main').onscroll = function() {scrollFunction()}; // More specific target attempt
+                        const btn = document.createElement("button");
+                        btn.innerHTML = "⬆️"; // Use just the arrow for a round button
+                        btn.id = "stGoToTopBtn";
+                        btn.title = "Go to top";
+                        btn.onclick = scrollToTopFunction;
+                        document.body.appendChild(btn); // Append to body
 
-                    function scrollFunction() {
-                    // Check scroll position of the main window for simplicity first
-                    // More specific element targeting might be needed if this fails in iframe context
-                    let scrollPos = document.body.scrollTop || document.documentElement.scrollTop;
-
-                    if (scrollPos > 100) { // Show button after scrolling down 100px
-                        mybutton.style.display = "block";
-                    } else {
-                        mybutton.style.display = "none";
-                    }
+                        console.log("Go To Top button created.");
+                        attachScrollListener(); // Attach listener after creation
                     }
 
-                    // When the user clicks on the button, scroll to the top of the document smoothly
+                    // Function to scroll to top
                     function scrollToTopFunction() {
-                    // Use smooth scroll for better UX
-                    window.scrollTo({top: 0, behavior: 'smooth'});
-                    // If window doesn't work in iframe context, try targeting parent or specific element
-                    // window.parent.document.querySelector('section.main').scrollTo({top: 0, behavior: 'smooth'});
+                        try {
+                            // Target the main scrollable container in Streamlit (more specific)
+                            const mainScrollable = window.parent.document.querySelector('section[data-testid="stAppViewContainer"] > section'); // Common Streamlit structure
+                            if (mainScrollable) {
+                                mainScrollable.scrollTo({top: 0, behavior: 'smooth'});
+                                console.log("Scrolled specific container to top.");
+                            } else {
+                                // Fallback to window scroll if specific container not found
+                                window.scrollTo({top: 0, behavior: 'smooth'});
+                                console.log("Scrolled window to top (fallback).");
+                            }
+                        } catch (e) {
+                            console.error("Error finding scrollable element or scrolling:", e);
+                            // Absolute fallback
+                            window.scrollTo(0, 0);
+                        }
                     }
+
+                    // Function to show/hide button based on scroll position
+                    function handleScroll() {
+                        const btn = document.getElementById("stGoToTopBtn");
+                        if (!btn) return; // Exit if button doesn't exist
+
+                        let scrollPos = 0;
+                        try {
+                            // Try to get scroll position from the specific container
+                            const mainScrollable = window.parent.document.querySelector('section[data-testid="stAppViewContainer"] > section');
+                            if (mainScrollable) {
+                                scrollPos = mainScrollable.scrollTop;
+                            } else {
+                                // Fallback scroll position check
+                                scrollPos = document.body.scrollTop || document.documentElement.scrollTop || window.pageYOffset;
+                            }
+                        } catch (e) {
+                            // Fallback if accessing parent/querySelector fails
+                            scrollPos = document.body.scrollTop || document.documentElement.scrollTop || window.pageYOffset;
+                        }
+
+
+                        if (scrollPos > 200) { // Show after scrolling a bit more
+                            btn.style.display = "block";
+                        } else {
+                            btn.style.display = "none";
+                        }
+                    }
+
+                    // Function to attach the scroll listener to the correct element
+                    function attachScrollListener() {
+                        try {
+                            // Attempt to attach listener to the specific scrollable container
+                            const mainScrollable = window.parent.document.querySelector('section[data-testid="stAppViewContainer"] > section');
+                            if (mainScrollable) {
+                                mainScrollable.onscroll = handleScroll;
+                                console.log("Attached scroll listener to specific container.");
+                                // Initial check in case page is already scrolled
+                                handleScroll();
+                                return; // Success
+                            }
+                        } catch (e) {
+                            console.warn("Could not attach scroll listener to specific container, using window.", e);
+                        }
+
+                        // Fallback: Attach listener to the window
+                        window.onscroll = handleScroll;
+                        console.log("Attached scroll listener to window (fallback).");
+                        // Initial check
+                        handleScroll();
+                    }
+
+                    // --- Execution ---
+                    // Use DOMContentLoaded to ensure the body exists before appending
+                    if (document.readyState === "complete" || document.readyState === "interactive") {
+                        // DOM already loaded
+                        createGoToTopButton();
+                    } else {
+                        // Wait for the DOM to load
+                        document.addEventListener("DOMContentLoaded", createGoToTopButton);
+                    }
+
                 </script>
                 """
-            # Embed the component only on the Chatbot page
-            st.components.v1.html(button_html, height=100, scrolling=False)
 
+            # Embed the CSS and JS into the Streamlit page
+            st.components.v1.html(button_css + button_js, height=0, scrolling=False)
 
 # Default case (shouldn't happen with radio buttons but good practice)
 else:
