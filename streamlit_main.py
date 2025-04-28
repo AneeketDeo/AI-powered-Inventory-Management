@@ -838,7 +838,7 @@ elif selected_page == "💬 Chatbot":
                 </script>
                 """
             # Embed the component only on the Chatbot page
-            st.components.v1.html(button_html, height=0, scrolling=False)
+            st.components.v1.html(button_html, height=100, scrolling=False)
 
 
 # Default case (shouldn't happen with radio buttons but good practice)
