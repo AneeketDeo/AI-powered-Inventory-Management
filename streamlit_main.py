@@ -63,7 +63,11 @@ try:
         api_key=api_key,
     )
     # Quick check to validate credentials and connection during startup
-    openai.Model.list()
+    chat = client.chat.completions.create(
+        model="openai/gpt-4o",
+        messages=[{"role": "user", "content": "Hello!"}],
+        max_tokens=5
+    )
 
     llm_provider = "GPT-4o"
     llm_enabled = True
