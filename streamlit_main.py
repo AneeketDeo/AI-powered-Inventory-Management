@@ -586,8 +586,20 @@ def run_conversation(user_prompt):
         st.session_state.messages.append({"role": "assistant", "content": f"Sorry, encountered an API error: {e}"})
         return f"API Error: {e}"
     except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        # Get the last frame from the traceback
+        last_frame = traceback.extract_tb(exc_traceback)[-1]
+        file_name = last_frame.filename
+        line_no = last_frame.lineno
+        func_name = last_frame.name
+        line_content = last_frame.line
+        print("\n--- Extracted Details (Last Frame) ---")
+        print(f"File: {file_name}")
+        print(f"Function: {func_name}")
+        print(f"Line Number: {line_no}")
+        print(f"Line Content: {line_content}")
         error_msg = f"Unexpected error during LLM interaction ({model_name}): {e}"
-        st.error(error_msg, icon="🚨")
+        st.error(error_msg + line_no, icon="🚨")
         if st.session_state.messages and st.session_state.messages[-1]["role"] == "user": st.session_state.messages.pop()
         st.session_state.messages.append({"role": "assistant", "content": f"Sorry, an unexpected error occurred: {e}"})
         return f"Unexpected Error: {e}"
