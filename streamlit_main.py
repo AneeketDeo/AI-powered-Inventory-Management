@@ -65,7 +65,7 @@ try:
     # Quick check to validate credentials and connection during startup
     client.models.list()
 
-    llm_provider = "GPT 4o"
+    llm_provider = "GPT-4o"
     llm_enabled = True
     
 
@@ -81,7 +81,9 @@ except Exception as e:
     last_frame = traceback.extract_tb(exc_traceback)[-1]
     file_name = last_frame.filename
     line_no = last_frame.lineno
-    st.sidebar.error(f"Error initializing {llm_provider}: {e}. Chatbot disabled." + str(line_no), icon="⚠️")
+    func_name = last_frame.name
+    line_content = last_frame.line
+    st.sidebar.error(f"Error initializing {llm_provider}: {e}. Chatbot disabled." + str(line_no) + str(line_content), icon="⚠️")
 
 
 
