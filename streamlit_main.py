@@ -595,122 +595,6 @@ def run_conversation(user_prompt):
 
 # --- Streamlit UI Layout ---
 st.sidebar.header("Actions")
-# --- Tab Definitions ---
-# tab1, tab2, tab3 = st.tabs(["📊 View Inventory", "📝 Manage Items", "💬 Chatbot"])
-
-# # --- Tab 1: View Inventory ---
-# with tab1:
-#     st.header("Current Inventory Status")
-#     st.dataframe(get_inventory_df(), use_container_width=True, hide_index=True)
-#     # if st.button("Refresh View", key="refresh_view"): st.rerun()
-
-# --- Tab 2: Manage Items ---
-# with tab2:
-#     st.header("Manage Inventory Items")
-#     st.info("Add, update, or delete items from the inventory list.", icon="ℹ️")
-#     col_add, col_manage = st.columns(2)
-#     # Add Form... (Keep as before)
-#     with col_add:
-#         st.subheader("➕ Add New Item")
-#         with st.form("add_item_form", clear_on_submit=True):
-#             new_name = st.text_input("Item Name*")
-#             new_quantity = st.number_input("Quantity*", min_value=0, step=1, value=0)
-#             new_price = st.number_input("Price (per unit)*", min_value=0.00, step=0.01, value=0.00, format="%.2f")
-#             submitted_add = st.form_submit_button("Add Item")
-#             if submitted_add:
-#                 if not new_name or new_quantity is None or new_price is None: st.warning("Please fill in all required fields (*).")
-#                 else:
-#                     new_id = generate_item_id(); st.session_state.inventory[new_id] = {"name": new_name.strip(), "quantity": int(new_quantity), "price": float(new_price), "last_updated": datetime.datetime.now()}
-#                     st.success(f"✅ Item '{new_name}' ({new_id}) added successfully!"); st.rerun()
-#     # Update/Delete Form... (Keep as before)
-#     with col_manage:
-#         st.subheader("✏️ Update / 🗑️ Delete Item")
-#         if not st.session_state.inventory: st.info("Inventory is empty. Add items first.")
-#         else:
-#             item_options = [(f"{details.get('name', 'N/A')} ({item_id})", item_id) for item_id, details in st.session_state.inventory.items()]; item_options.sort(); item_options.insert(0, ("-- Select Item --", None))
-#             selected_option = st.selectbox("Select Item to Manage", options=item_options, format_func=lambda option: option[0], key="manage_select"); selected_id = selected_option[1]
-#             if selected_id:
-#                 item = st.session_state.inventory.get(selected_id)
-#                 if item:
-#                     with st.form(f"update_delete_{selected_id}_form"):
-#                         st.write(f"**Managing:** {item.get('name', 'N/A')} ({selected_id})"); update_name = st.text_input("Item Name*", value=item.get('name', '')); update_quantity = st.number_input("Quantity*", min_value=0, step=1, value=item.get('quantity', 0)); update_price = st.number_input("Price*", min_value=0.00, step=0.01, format="%.2f", value=item.get('price', 0.00))
-#                         update_col, delete_col = st.columns(2)
-#                         with update_col: submitted_update = st.form_submit_button("Update Item")
-#                         with delete_col: submitted_delete = st.form_submit_button("Delete Item", type="primary")
-#                         if submitted_update:
-#                             if not update_name or update_quantity is None or update_price is None: st.warning("Please ensure all fields have valid values (*).")
-#                             else: st.session_state.inventory[selected_id] = {"name": update_name.strip(), "quantity": int(update_quantity), "price": float(update_price), "last_updated": datetime.datetime.now()}; st.success(f"✅ Item '{update_name}' ({selected_id}) updated!"); st.rerun()
-#                         if submitted_delete:
-#                             deleted_name = st.session_state.inventory.get(selected_id, {}).get('name', 'Unknown')
-#                             if selected_id in st.session_state.inventory: del st.session_state.inventory[selected_id]; st.success(f"🗑️ Item '{deleted_name}' ({selected_id}) deleted!"); st.rerun()
-#                             else: st.warning(f"Item {selected_id} was already deleted."); st.rerun()
-#                 else: st.warning(f"Item {selected_id} no longer seems to exist. Refreshing list.")
-
-
-# --- Tab 3: Chatbot ---
-# with tab3:
-#     st.header(f"💬 Chat with Inventory Bot ({llm_provider})")
-
-#     if not llm_enabled:
-#         st.warning(f"LLM client ({llm_provider}) failed to initialize. Chatbot functionality is disabled. Check secrets.", icon="⚠️")
-#     else:
-#         st.info("Ask questions about inventory status, item details, or low stock.", icon="💡")
-
-#         # **FIXED:** Display chat history (robustly handling dictionary structure)
-#         for i, message in enumerate(st.session_state.messages):
-#             role = message.get("role", "unknown") # Safely get role
-#             with st.chat_message(role):
-#                 # --- Tool Result Message ---
-#                 if role == "tool":
-#                     tool_name = message.get('name', 'unknown_function')
-#                     tool_content = message.get('content', '{}')
-#                     st.markdown(f"🛠️ **Function Result (`{tool_name}`)**")
-#                     try: # Try to pretty-print JSON content
-#                         parsed_content = json.loads(tool_content)
-#                         st.json(parsed_content)
-#                     except json.JSONDecodeError: # If not valid JSON, show as plain text/code
-#                         st.code(tool_content, language=None)
-
-#                 # --- Assistant Message Requesting Tool Calls ---
-#                 elif message.get("tool_calls"):
-#                     # Display any textual content that might accompany the tool call request
-#                     if message.get("content"):
-#                         st.markdown(message.get("content"))
-#                     # Display the requested tool calls
-#                     calls = message.get("tool_calls", []) # Default to empty list
-#                     if calls: # Check if list is not empty and has items
-#                         st.markdown("```tool_code") # Use a custom language for potential styling
-#                         for tc in calls:
-#                             # Safely access nested attributes using getattr
-#                             func = getattr(tc, 'function', object()) # Get function object safely
-#                             func_name = getattr(func, 'name', 'unknown')
-#                             func_args = getattr(func, 'arguments', '{}')
-#                             st.text(f"Function: {func_name}\nArgs: {func_args}")
-#                         st.markdown("```")
-
-#                 # --- Regular User or Assistant Text Message ---
-#                 elif message.get("content"):
-#                     st.markdown(message.get("content"))
-
-#                 # --- Fallback for messages with unexpected structure ---
-#                 else:
-#                     st.write(f"*(Message with role '{role}' has no displayable content)*")
-
-
-#         # Accept user input
-#         if prompt := st.chat_input("Ask about inventory (e.g., 'low stock', 'details of Laptop')..."):
-#             # Display user message immediately
-#             with st.chat_message("user"):
-#                 st.markdown(prompt)
-
-#             # Display thinking spinner and then the response
-#             with st.chat_message("assistant"):
-#                 message_placeholder = st.empty()
-#                 with st.spinner("🤔 Thinking..."):
-#                     # Get LLM response (handles function calling)
-#                     full_response = run_conversation(prompt)
-#                     message_placeholder.markdown(full_response or "*Assistant did not generate a response.*")
-
 
 # --- Optional: Add Persistence Section (Example) --- (Keep as before)
 # ...
@@ -759,17 +643,6 @@ with st.sidebar:
         st.rerun() # Rerun to reflect the cleared chat immediately
 
     # --- Go to Top Button ---
-    st.divider()
-    st.subheader("Page Controls")
-    if st.button("⬆️ Go to Top", key="go_top"):
-        # Inject JavaScript to scroll to top
-        st.markdown(
-            """
-            <script>
-                window.scrollTo(0, 0);
-            </script>
-            """, unsafe_allow_html=True
-        )
     st.divider()
     st.caption("AI Inventory Manager v1.1")
 
@@ -899,6 +772,73 @@ elif selected_page == "💬 Chatbot":
                 }
                 </script>
             """, height=0) # Height 0 so the component itself isn't visible
+
+            # Inside the `elif selected_page == "💬 Chatbot":` block:
+
+            # --- Floating Go To Top Button (Chatbot Page Only) ---
+            # Define the HTML, CSS, and JS for the button
+            button_html = """
+                <style>
+                    #goToTopBtn {
+                        display: none; /* Hidden by default */
+                        position: fixed; /* Fixed/sticky position */
+                        bottom: 20px; /* Place at the bottom */
+                        right: 30px; /* Place on the right */
+                        z-index: 999; /* Make sure it does not overlap other elements */
+                        border: none; /* Remove borders */
+                        outline: none; /* Remove outline */
+                        background-color: #555; /* Background color */
+                        color: white; /* Text color */
+                        cursor: pointer; /* Add a mouse pointer on hover */
+                        padding: 10px 15px; /* Some padding */
+                        border-radius: 10px; /* Rounded corners */
+                        font-size: 18px; /* Increase font size */
+                        opacity: 0.7; /* Slightly transparent */
+                        transition: opacity 0.3s, background-color 0.3s; /* Smooth transitions */
+                    }
+
+                    #goToTopBtn:hover {
+                        background-color: #007bff; /* Darker background on hover */
+                        opacity: 1; /* Fully opaque on hover */
+                    }
+                </style>
+
+                <button onclick="scrollToTopFunction()" id="goToTopBtn" title="Go to top">⬆️ Top</button>
+
+                <script>
+                    // Get the button
+                    var mybutton = document.getElementById("goToTopBtn");
+
+                    // When the user scrolls down 100px from the top of the document, show the button
+                    window.onscroll = function() {scrollFunction()};
+                    // Need to access the correct scrollable element in Streamlit
+                    // The main content area might be 'section.main .block-container' or similar
+                    // Let's try attaching to window first, might need adjustment
+                    // window.parent.document.querySelector('section.main').onscroll = function() {scrollFunction()}; // More specific target attempt
+
+                    function scrollFunction() {
+                    // Check scroll position of the main window for simplicity first
+                    // More specific element targeting might be needed if this fails in iframe context
+                    let scrollPos = document.body.scrollTop || document.documentElement.scrollTop;
+
+                    if (scrollPos > 100) { // Show button after scrolling down 100px
+                        mybutton.style.display = "block";
+                    } else {
+                        mybutton.style.display = "none";
+                    }
+                    }
+
+                    // When the user clicks on the button, scroll to the top of the document smoothly
+                    function scrollToTopFunction() {
+                    // Use smooth scroll for better UX
+                    window.scrollTo({top: 0, behavior: 'smooth'});
+                    // If window doesn't work in iframe context, try targeting parent or specific element
+                    // window.parent.document.querySelector('section.main').scrollTo({top: 0, behavior: 'smooth'});
+                    }
+                </script>
+                """
+            # Embed the component only on the Chatbot page
+            st.components.v1.html(button_html, height=0, scrolling=False)
 
 
 # Default case (shouldn't happen with radio buttons but good practice)
