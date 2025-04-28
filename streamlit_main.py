@@ -74,18 +74,18 @@ try:
     
 
 except KeyError:
-    st.sidebar.error("`OPENROUTER_API_KEY` not found in Streamlit secrets. Chatbot disabled.", icon="⚠️")
+    st.sidebar.error(f"`{llm_provider}_API_KEY` not found in Streamlit secrets. Chatbot disabled.", icon="⚠️")
 except openai.AuthenticationError:
-    st.sidebar.error(f"OpenRouter Authentication Error: Invalid API Key. Chatbot disabled.", icon="🚨")
+    st.sidebar.error(f"{llm_provider} Authentication Error: Invalid API Key. Chatbot disabled.", icon="🚨")
 except openai.APIConnectionError as e:
-    st.sidebar.error(f"OpenRouter Connection Error. Chatbot disabled. Error: {e}", icon="🚨")
+    st.sidebar.error(f"{llm_provider} Connection Error. Chatbot disabled. Error: {e}", icon="🚨")
 except Exception as e:
     exc_type, exc_value, exc_traceback = sys.exc_info()
     # Get the last frame from the traceback
     last_frame = traceback.extract_tb(exc_traceback)[-1]
     file_name = last_frame.filename
     line_no = last_frame.lineno
-    st.sidebar.error(f"Error initializing OpenRouter: {e}. Chatbot disabled." + str(line_no), icon="⚠️")
+    st.sidebar.error(f"Error initializing {llm_provider}: {e}. Chatbot disabled." + str(line_no), icon="⚠️")
 
 
 
@@ -632,11 +632,11 @@ with st.sidebar:
         error_message = "LLM connection failed. "
         try:
             # Attempt to access secrets again to give specific feedback
-            st.secrets["OPENROUTER_API_KEY"]
+            st.secrets["GITHUB_TOKEN"]
             # If key exists, error must be connection/auth
-            error_message += "Check API Key validity or OpenRouter status."
+            error_message += "Check API Key validity or {llm_provider} status."
         except KeyError:
-             error_message += "`OPENROUTER_API_KEY` missing in secrets."
+             error_message += "`{llm_provider}_API_KEY` missing in secrets."
         except Exception as e:
             error_message += f"Unexpected init error: {e}"
         st.error(error_message, icon="⚠️")
