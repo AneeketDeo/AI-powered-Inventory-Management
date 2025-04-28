@@ -430,7 +430,7 @@ def run_conversation(user_prompt):
         return f"LLM client ({llm_provider}) not available. Cannot process request."
 
     # --- Choose Model ---
-    model_name = "openai/gpt-3.5-turbo" # A reliable choice for OpenAI-style function calling
+    model_name = "google/gemma-3-27b-it:free" # A reliable choice for OpenAI-style function calling
 
     # --- Prepare History ---
     st.session_state.messages.append({"role": "user", "content": user_prompt})
