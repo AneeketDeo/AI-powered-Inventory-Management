@@ -61,10 +61,6 @@ try:
     client = OpenAI(
         api_key=api_key,
         base_url="https://models.github.ai/inference",
-        default_headers={
-            "HTTP-Referer": OPENROUTER_REFERRER_URL, # Helps OpenRouter track usage source
-            "X-Title": OPENROUTER_APP_TITLE,         # Helps OpenRouter track usage source
-        }
     )
     # Quick check to validate credentials and connection during startup
     client.models.list()
@@ -634,9 +630,9 @@ with st.sidebar:
             # Attempt to access secrets again to give specific feedback
             st.secrets["GITHUB_TOKEN"]
             # If key exists, error must be connection/auth
-            error_message += "Check API Key validity or {llm_provider} status."
+            error_message += f"Check API Key validity or {llm_provider} status."
         except KeyError:
-             error_message += "`{llm_provider}_API_KEY` missing in secrets."
+             error_message += f"`{llm_provider}_API_KEY` missing in secrets."
         except Exception as e:
             error_message += f"Unexpected init error: {e}"
         st.error(error_message, icon="⚠️")
