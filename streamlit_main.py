@@ -71,8 +71,7 @@ try:
 
     llm_provider = "OpenRouter"
     llm_enabled = True
-    st.sidebar.success(f"Connected to {llm_provider}", icon="✅")
-    st.sidebar.caption(f"Using URL: {OPENROUTER_REFERRER_URL}") # Show URL being used
+    
 
 except KeyError:
     st.sidebar.error("`OPENROUTER_API_KEY` not found in Streamlit secrets. Chatbot disabled.", icon="⚠️")
@@ -719,8 +718,8 @@ with tab3:
 
 # --- Sidebar ---
 with st.sidebar:
-    st.title("⚙️ Controls & Info")
-    st.divider()
+    # st.title("⚙️ Controls & Info")
+    # st.divider()
 
     # --- LLM Connection Status ---
     st.subheader("LLM Status")
