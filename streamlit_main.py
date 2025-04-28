@@ -773,6 +773,22 @@ elif selected_page == "💬 Chatbot":
                 </script>
             """, height=0) # Height 0 so the component itself isn't visible
 
+            # Checking if basic rendering is possible using st.markdown
+            basic_html = """
+            <div style="background-color: yellow; padding: 20px; border: 3px solid red; margin: 10px;">
+                <h2 style="color: blue;">Hello from HTML!</h2>
+                <p style="font-size: 16px; color: green;">
+                    If you can see this yellow box with a red border and this text,
+                    then <code>st.markdown(..., unsafe_allow_html=True)</code> is working correctly.
+                </p>
+            </div>
+            """
+
+            # --- The Key Part ---
+            # Render the HTML string using st.markdown
+            # Make absolutely sure unsafe_allow_html=True is included!
+            st.markdown(basic_html, unsafe_allow_html=True)
+
             # Inside the `elif selected_page == "💬 Chatbot":` block:
 
 
