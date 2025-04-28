@@ -914,7 +914,7 @@ elif selected_page == "💬 Chatbot":
                 """
 
             # Embed the CSS and JS into the Streamlit page
-            st.components.v1.html(button_css + button_js, height=0, scrolling=False)
+            st.components.v1.html(button_css + button_js, height=500, scrolling=False)
 
 # Default case (shouldn't happen with radio buttons but good practice)
 else:
