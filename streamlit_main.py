@@ -773,78 +773,62 @@ elif selected_page == "💬 Chatbot":
                 </script>
             """, height=0) # Height 0 so the component itself isn't visible
 
-            # Checking if basic rendering is possible using st.markdown
-            basic_html = """
-            <div style="background-color: yellow; padding: 20px; border: 3px solid red; margin: 10px;">
-                <h2 style="color: blue;">Hello from HTML!</h2>
-                <p style="font-size: 16px; color: green;">
-                    If you can see this yellow box with a red border and this text,
-                    then <code>st.markdown(..., unsafe_allow_html=True)</code> is working correctly.
-                </p>
-            </div>
-            """
+            
 
-            # --- The Key Part ---
-            # Render the HTML string using st.markdown
-            # Make absolutely sure unsafe_allow_html=True is included!
-            st.markdown(basic_html, unsafe_allow_html=True)
+    # Inside the `elif selected_page == "💬 Chatbot":` block:
+    # --- Floating Go To Top Button (Chatbot Page Only - Robust JS Approach) ---
 
-            # Inside the `elif selected_page == "💬 Chatbot":` block:
+    button_html = """
+        <style>
+            #scrollTopBtn {
+                position: fixed; /* Fixed/sticky position */
+                bottom: 20px; /* Place the button 20px from the bottom */
+                right: 30px; /* Place the button 30px from the right */
+                z-index: 99; /* Make sure it does not overlap other elements */
+                border: none; /* Remove borders */
+                outline: none; /* Remove outline */
+                background-color: #555; /* Set a background color */
+                color: white; /* Text color */
+                cursor: pointer; /* Add a mouse pointer on hover */
+                padding: 15px; /* Some padding */
+                border-radius: 10px; /* Rounded corners */
+                font-size: 18px; /* Increase font size */
+                display: none; /* Hidden by default */
+            }
 
+            #scrollTopBtn:hover {
+                background-color: #007bff; /* Add a darker background on hover */
+            }
+        </style>
 
-            # --- Floating Go To Top Button (Chatbot Page Only - Robust JS Approach) ---
+        <button onclick="scrollToTop()" id="scrollTopBtn" title="Go to top">Top</button>
 
-            button_html = """
-                <style>
-                    #scrollTopBtn {
-                        position: fixed; /* Fixed/sticky position */
-                        bottom: 20px; /* Place the button 20px from the bottom */
-                        right: 30px; /* Place the button 30px from the right */
-                        z-index: 99; /* Make sure it does not overlap other elements */
-                        border: none; /* Remove borders */
-                        outline: none; /* Remove outline */
-                        background-color: #555; /* Set a background color */
-                        color: white; /* Text color */
-                        cursor: pointer; /* Add a mouse pointer on hover */
-                        padding: 15px; /* Some padding */
-                        border-radius: 10px; /* Rounded corners */
-                        font-size: 18px; /* Increase font size */
-                        display: none; /* Hidden by default */
-                    }
+        <script>
+            // Get the button
+            var mybutton = document.getElementById("scrollTopBtn");
 
-                    #scrollTopBtn:hover {
-                        background-color: #007bff; /* Add a darker background on hover */
-                    }
-                </style>
+            // When the user scrolls down 100px from the top of the document, show the button
+            window.onscroll = function() {scrollFunction()};
 
-                <button onclick="scrollToTop()" id="scrollTopBtn" title="Go to top">Top</button>
+            function scrollFunction() {
+                // Use document.documentElement.scrollTop for compatibility
+                if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
+                    mybutton.style.display = "block";
+                } else {
+                    mybutton.style.display = "none";
+                }
+            }
 
-                <script>
-                    // Get the button
-                    var mybutton = document.getElementById("scrollTopBtn");
+            // When the user clicks on the button, scroll to the top of the document
+            function scrollToTop() {
+                // Use smooth scrolling
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            }
+        </script>
+        """
 
-                    // When the user scrolls down 100px from the top of the document, show the button
-                    window.onscroll = function() {scrollFunction()};
-
-                    function scrollFunction() {
-                        // Use document.documentElement.scrollTop for compatibility
-                        if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
-                            mybutton.style.display = "block";
-                        } else {
-                            mybutton.style.display = "none";
-                        }
-                    }
-
-                    // When the user clicks on the button, scroll to the top of the document
-                    function scrollToTop() {
-                        // Use smooth scrolling
-                        window.scrollTo({top: 0, behavior: 'smooth'});
-                    }
-                </script>
-                """
-
-            # Inject the HTML/CSS/JS into the Streamlit app
-            st.markdown(button_html, unsafe_allow_html=True)
+    # Inject the HTML/CSS/JS into the Streamlit app
+    st.markdown(button_html, unsafe_allow_html=True)
 
             # Define the CSS styles separately for clarity
 #             button_css = """
