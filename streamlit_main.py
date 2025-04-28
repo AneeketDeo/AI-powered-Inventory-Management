@@ -777,6 +777,59 @@ elif selected_page == "💬 Chatbot":
 
 
             # --- Floating Go To Top Button (Chatbot Page Only - Robust JS Approach) ---
+
+            button_html = """
+                <style>
+                    #scrollTopBtn {
+                        position: fixed; /* Fixed/sticky position */
+                        bottom: 20px; /* Place the button 20px from the bottom */
+                        right: 30px; /* Place the button 30px from the right */
+                        z-index: 99; /* Make sure it does not overlap other elements */
+                        border: none; /* Remove borders */
+                        outline: none; /* Remove outline */
+                        background-color: #555; /* Set a background color */
+                        color: white; /* Text color */
+                        cursor: pointer; /* Add a mouse pointer on hover */
+                        padding: 15px; /* Some padding */
+                        border-radius: 10px; /* Rounded corners */
+                        font-size: 18px; /* Increase font size */
+                        display: none; /* Hidden by default */
+                    }
+
+                    #scrollTopBtn:hover {
+                        background-color: #007bff; /* Add a darker background on hover */
+                    }
+                </style>
+
+                <button onclick="scrollToTop()" id="scrollTopBtn" title="Go to top">Top</button>
+
+                <script>
+                    // Get the button
+                    var mybutton = document.getElementById("scrollTopBtn");
+
+                    // When the user scrolls down 100px from the top of the document, show the button
+                    window.onscroll = function() {scrollFunction()};
+
+                    function scrollFunction() {
+                        // Use document.documentElement.scrollTop for compatibility
+                        if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
+                            mybutton.style.display = "block";
+                        } else {
+                            mybutton.style.display = "none";
+                        }
+                    }
+
+                    // When the user clicks on the button, scroll to the top of the document
+                    function scrollToTop() {
+                        // Use smooth scrolling
+                        window.scrollTo({top: 0, behavior: 'smooth'});
+                    }
+                </script>
+                """
+
+            # Inject the HTML/CSS/JS into the Streamlit app
+            st.markdown(button_html, unsafe_allow_html=True)
+
             # Define the CSS styles separately for clarity
 #             button_css = """
 #                 <style>
@@ -915,7 +968,7 @@ elif selected_page == "💬 Chatbot":
 
             # Embed the CSS and JS into the Streamlit page
             # st.components.v1.html(button_css + button_js, height=500, scrolling=False)
-            st.components.v1.html("THIS IS THE HTML CONTENT TO BE BUTTONED", height=500, scrolling=False)
+            # st.components.v1.html("THIS IS THE HTML CONTENT TO BE BUTTONED", height=500, scrolling=False)
 
 
 # Default case (shouldn't happen with radio buttons but good practice)
