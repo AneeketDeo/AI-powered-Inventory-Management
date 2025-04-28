@@ -599,7 +599,7 @@ def run_conversation(user_prompt):
         print(f"Line Number: {line_no}")
         print(f"Line Content: {line_content}")
         error_msg = f"Unexpected error during LLM interaction ({model_name}): {e}"
-        st.error(error_msg + line_no, icon="🚨")
+        st.error(error_msg + str(line_no), icon="🚨")
         if st.session_state.messages and st.session_state.messages[-1]["role"] == "user": st.session_state.messages.pop()
         st.session_state.messages.append({"role": "assistant", "content": f"Sorry, an unexpected error occurred: {e}"})
         return f"Unexpected Error: {e}"
