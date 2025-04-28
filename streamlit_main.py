@@ -783,8 +783,8 @@ elif selected_page == "💬 Chatbot":
                     #stGoToTopBtn {
  /* Hidden by default */
                         position: fixed;
-                        bottom: 30px; /* Slightly higher */
-                        right: 30px;
+                        bottom: 500px; /* Slightly higher */
+                        right: 500px;
                         z-index: 1001; /* Ensure high z-index */
                         border: none;
                         outline: none;
