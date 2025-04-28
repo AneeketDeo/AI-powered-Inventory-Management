@@ -596,120 +596,120 @@ def run_conversation(user_prompt):
 # --- Streamlit UI Layout ---
 st.sidebar.header("Actions")
 # --- Tab Definitions ---
-tab1, tab2, tab3 = st.tabs(["📊 View Inventory", "📝 Manage Items", "💬 Chatbot"])
+# tab1, tab2, tab3 = st.tabs(["📊 View Inventory", "📝 Manage Items", "💬 Chatbot"])
 
-# --- Tab 1: View Inventory ---
-with tab1:
-    st.header("Current Inventory Status")
-    st.dataframe(get_inventory_df(), use_container_width=True, hide_index=True)
-    # if st.button("Refresh View", key="refresh_view"): st.rerun()
+# # --- Tab 1: View Inventory ---
+# with tab1:
+#     st.header("Current Inventory Status")
+#     st.dataframe(get_inventory_df(), use_container_width=True, hide_index=True)
+#     # if st.button("Refresh View", key="refresh_view"): st.rerun()
 
 # --- Tab 2: Manage Items ---
-with tab2:
-    st.header("Manage Inventory Items")
-    st.info("Add, update, or delete items from the inventory list.", icon="ℹ️")
-    col_add, col_manage = st.columns(2)
-    # Add Form... (Keep as before)
-    with col_add:
-        st.subheader("➕ Add New Item")
-        with st.form("add_item_form", clear_on_submit=True):
-            new_name = st.text_input("Item Name*")
-            new_quantity = st.number_input("Quantity*", min_value=0, step=1, value=0)
-            new_price = st.number_input("Price (per unit)*", min_value=0.00, step=0.01, value=0.00, format="%.2f")
-            submitted_add = st.form_submit_button("Add Item")
-            if submitted_add:
-                if not new_name or new_quantity is None or new_price is None: st.warning("Please fill in all required fields (*).")
-                else:
-                    new_id = generate_item_id(); st.session_state.inventory[new_id] = {"name": new_name.strip(), "quantity": int(new_quantity), "price": float(new_price), "last_updated": datetime.datetime.now()}
-                    st.success(f"✅ Item '{new_name}' ({new_id}) added successfully!"); st.rerun()
-    # Update/Delete Form... (Keep as before)
-    with col_manage:
-        st.subheader("✏️ Update / 🗑️ Delete Item")
-        if not st.session_state.inventory: st.info("Inventory is empty. Add items first.")
-        else:
-            item_options = [(f"{details.get('name', 'N/A')} ({item_id})", item_id) for item_id, details in st.session_state.inventory.items()]; item_options.sort(); item_options.insert(0, ("-- Select Item --", None))
-            selected_option = st.selectbox("Select Item to Manage", options=item_options, format_func=lambda option: option[0], key="manage_select"); selected_id = selected_option[1]
-            if selected_id:
-                item = st.session_state.inventory.get(selected_id)
-                if item:
-                    with st.form(f"update_delete_{selected_id}_form"):
-                        st.write(f"**Managing:** {item.get('name', 'N/A')} ({selected_id})"); update_name = st.text_input("Item Name*", value=item.get('name', '')); update_quantity = st.number_input("Quantity*", min_value=0, step=1, value=item.get('quantity', 0)); update_price = st.number_input("Price*", min_value=0.00, step=0.01, format="%.2f", value=item.get('price', 0.00))
-                        update_col, delete_col = st.columns(2)
-                        with update_col: submitted_update = st.form_submit_button("Update Item")
-                        with delete_col: submitted_delete = st.form_submit_button("Delete Item", type="primary")
-                        if submitted_update:
-                            if not update_name or update_quantity is None or update_price is None: st.warning("Please ensure all fields have valid values (*).")
-                            else: st.session_state.inventory[selected_id] = {"name": update_name.strip(), "quantity": int(update_quantity), "price": float(update_price), "last_updated": datetime.datetime.now()}; st.success(f"✅ Item '{update_name}' ({selected_id}) updated!"); st.rerun()
-                        if submitted_delete:
-                            deleted_name = st.session_state.inventory.get(selected_id, {}).get('name', 'Unknown')
-                            if selected_id in st.session_state.inventory: del st.session_state.inventory[selected_id]; st.success(f"🗑️ Item '{deleted_name}' ({selected_id}) deleted!"); st.rerun()
-                            else: st.warning(f"Item {selected_id} was already deleted."); st.rerun()
-                else: st.warning(f"Item {selected_id} no longer seems to exist. Refreshing list.")
+# with tab2:
+#     st.header("Manage Inventory Items")
+#     st.info("Add, update, or delete items from the inventory list.", icon="ℹ️")
+#     col_add, col_manage = st.columns(2)
+#     # Add Form... (Keep as before)
+#     with col_add:
+#         st.subheader("➕ Add New Item")
+#         with st.form("add_item_form", clear_on_submit=True):
+#             new_name = st.text_input("Item Name*")
+#             new_quantity = st.number_input("Quantity*", min_value=0, step=1, value=0)
+#             new_price = st.number_input("Price (per unit)*", min_value=0.00, step=0.01, value=0.00, format="%.2f")
+#             submitted_add = st.form_submit_button("Add Item")
+#             if submitted_add:
+#                 if not new_name or new_quantity is None or new_price is None: st.warning("Please fill in all required fields (*).")
+#                 else:
+#                     new_id = generate_item_id(); st.session_state.inventory[new_id] = {"name": new_name.strip(), "quantity": int(new_quantity), "price": float(new_price), "last_updated": datetime.datetime.now()}
+#                     st.success(f"✅ Item '{new_name}' ({new_id}) added successfully!"); st.rerun()
+#     # Update/Delete Form... (Keep as before)
+#     with col_manage:
+#         st.subheader("✏️ Update / 🗑️ Delete Item")
+#         if not st.session_state.inventory: st.info("Inventory is empty. Add items first.")
+#         else:
+#             item_options = [(f"{details.get('name', 'N/A')} ({item_id})", item_id) for item_id, details in st.session_state.inventory.items()]; item_options.sort(); item_options.insert(0, ("-- Select Item --", None))
+#             selected_option = st.selectbox("Select Item to Manage", options=item_options, format_func=lambda option: option[0], key="manage_select"); selected_id = selected_option[1]
+#             if selected_id:
+#                 item = st.session_state.inventory.get(selected_id)
+#                 if item:
+#                     with st.form(f"update_delete_{selected_id}_form"):
+#                         st.write(f"**Managing:** {item.get('name', 'N/A')} ({selected_id})"); update_name = st.text_input("Item Name*", value=item.get('name', '')); update_quantity = st.number_input("Quantity*", min_value=0, step=1, value=item.get('quantity', 0)); update_price = st.number_input("Price*", min_value=0.00, step=0.01, format="%.2f", value=item.get('price', 0.00))
+#                         update_col, delete_col = st.columns(2)
+#                         with update_col: submitted_update = st.form_submit_button("Update Item")
+#                         with delete_col: submitted_delete = st.form_submit_button("Delete Item", type="primary")
+#                         if submitted_update:
+#                             if not update_name or update_quantity is None or update_price is None: st.warning("Please ensure all fields have valid values (*).")
+#                             else: st.session_state.inventory[selected_id] = {"name": update_name.strip(), "quantity": int(update_quantity), "price": float(update_price), "last_updated": datetime.datetime.now()}; st.success(f"✅ Item '{update_name}' ({selected_id}) updated!"); st.rerun()
+#                         if submitted_delete:
+#                             deleted_name = st.session_state.inventory.get(selected_id, {}).get('name', 'Unknown')
+#                             if selected_id in st.session_state.inventory: del st.session_state.inventory[selected_id]; st.success(f"🗑️ Item '{deleted_name}' ({selected_id}) deleted!"); st.rerun()
+#                             else: st.warning(f"Item {selected_id} was already deleted."); st.rerun()
+#                 else: st.warning(f"Item {selected_id} no longer seems to exist. Refreshing list.")
 
 
 # --- Tab 3: Chatbot ---
-with tab3:
-    st.header(f"💬 Chat with Inventory Bot ({llm_provider})")
+# with tab3:
+#     st.header(f"💬 Chat with Inventory Bot ({llm_provider})")
 
-    if not llm_enabled:
-        st.warning(f"LLM client ({llm_provider}) failed to initialize. Chatbot functionality is disabled. Check secrets.", icon="⚠️")
-    else:
-        st.info("Ask questions about inventory status, item details, or low stock.", icon="💡")
+#     if not llm_enabled:
+#         st.warning(f"LLM client ({llm_provider}) failed to initialize. Chatbot functionality is disabled. Check secrets.", icon="⚠️")
+#     else:
+#         st.info("Ask questions about inventory status, item details, or low stock.", icon="💡")
 
-        # **FIXED:** Display chat history (robustly handling dictionary structure)
-        for i, message in enumerate(st.session_state.messages):
-            role = message.get("role", "unknown") # Safely get role
-            with st.chat_message(role):
-                # --- Tool Result Message ---
-                if role == "tool":
-                    tool_name = message.get('name', 'unknown_function')
-                    tool_content = message.get('content', '{}')
-                    st.markdown(f"🛠️ **Function Result (`{tool_name}`)**")
-                    try: # Try to pretty-print JSON content
-                        parsed_content = json.loads(tool_content)
-                        st.json(parsed_content)
-                    except json.JSONDecodeError: # If not valid JSON, show as plain text/code
-                        st.code(tool_content, language=None)
+#         # **FIXED:** Display chat history (robustly handling dictionary structure)
+#         for i, message in enumerate(st.session_state.messages):
+#             role = message.get("role", "unknown") # Safely get role
+#             with st.chat_message(role):
+#                 # --- Tool Result Message ---
+#                 if role == "tool":
+#                     tool_name = message.get('name', 'unknown_function')
+#                     tool_content = message.get('content', '{}')
+#                     st.markdown(f"🛠️ **Function Result (`{tool_name}`)**")
+#                     try: # Try to pretty-print JSON content
+#                         parsed_content = json.loads(tool_content)
+#                         st.json(parsed_content)
+#                     except json.JSONDecodeError: # If not valid JSON, show as plain text/code
+#                         st.code(tool_content, language=None)
 
-                # --- Assistant Message Requesting Tool Calls ---
-                elif message.get("tool_calls"):
-                    # Display any textual content that might accompany the tool call request
-                    if message.get("content"):
-                        st.markdown(message.get("content"))
-                    # Display the requested tool calls
-                    calls = message.get("tool_calls", []) # Default to empty list
-                    if calls: # Check if list is not empty and has items
-                        st.markdown("```tool_code") # Use a custom language for potential styling
-                        for tc in calls:
-                            # Safely access nested attributes using getattr
-                            func = getattr(tc, 'function', object()) # Get function object safely
-                            func_name = getattr(func, 'name', 'unknown')
-                            func_args = getattr(func, 'arguments', '{}')
-                            st.text(f"Function: {func_name}\nArgs: {func_args}")
-                        st.markdown("```")
+#                 # --- Assistant Message Requesting Tool Calls ---
+#                 elif message.get("tool_calls"):
+#                     # Display any textual content that might accompany the tool call request
+#                     if message.get("content"):
+#                         st.markdown(message.get("content"))
+#                     # Display the requested tool calls
+#                     calls = message.get("tool_calls", []) # Default to empty list
+#                     if calls: # Check if list is not empty and has items
+#                         st.markdown("```tool_code") # Use a custom language for potential styling
+#                         for tc in calls:
+#                             # Safely access nested attributes using getattr
+#                             func = getattr(tc, 'function', object()) # Get function object safely
+#                             func_name = getattr(func, 'name', 'unknown')
+#                             func_args = getattr(func, 'arguments', '{}')
+#                             st.text(f"Function: {func_name}\nArgs: {func_args}")
+#                         st.markdown("```")
 
-                # --- Regular User or Assistant Text Message ---
-                elif message.get("content"):
-                    st.markdown(message.get("content"))
+#                 # --- Regular User or Assistant Text Message ---
+#                 elif message.get("content"):
+#                     st.markdown(message.get("content"))
 
-                # --- Fallback for messages with unexpected structure ---
-                else:
-                    st.write(f"*(Message with role '{role}' has no displayable content)*")
+#                 # --- Fallback for messages with unexpected structure ---
+#                 else:
+#                     st.write(f"*(Message with role '{role}' has no displayable content)*")
 
 
-        # Accept user input
-        if prompt := st.chat_input("Ask about inventory (e.g., 'low stock', 'details of Laptop')..."):
-            # Display user message immediately
-            with st.chat_message("user"):
-                st.markdown(prompt)
+#         # Accept user input
+#         if prompt := st.chat_input("Ask about inventory (e.g., 'low stock', 'details of Laptop')..."):
+#             # Display user message immediately
+#             with st.chat_message("user"):
+#                 st.markdown(prompt)
 
-            # Display thinking spinner and then the response
-            with st.chat_message("assistant"):
-                message_placeholder = st.empty()
-                with st.spinner("🤔 Thinking..."):
-                    # Get LLM response (handles function calling)
-                    full_response = run_conversation(prompt)
-                    message_placeholder.markdown(full_response or "*Assistant did not generate a response.*")
+#             # Display thinking spinner and then the response
+#             with st.chat_message("assistant"):
+#                 message_placeholder = st.empty()
+#                 with st.spinner("🤔 Thinking..."):
+#                     # Get LLM response (handles function calling)
+#                     full_response = run_conversation(prompt)
+#                     message_placeholder.markdown(full_response or "*Assistant did not generate a response.*")
 
 
 # --- Optional: Add Persistence Section (Example) --- (Keep as before)
@@ -782,113 +782,109 @@ if selected_page == "📊 View Inventory":
         st.rerun()
 
 elif selected_page == "📝 Manage Items":
-    st.header("📝 Manage Inventory Items")
+    st.header("Manage Inventory Items")
     st.info("Add, update, or delete items from the inventory list.", icon="ℹ️")
     col_add, col_manage = st.columns(2)
-    # Add Form
+    # Add Form... (Keep as before)
     with col_add:
         st.subheader("➕ Add New Item")
         with st.form("add_item_form", clear_on_submit=True):
             new_name = st.text_input("Item Name*")
-            new_quantity = st.number_input("Quantity*", min_value=0, step=1, value=0) # Allow 0 here for manual entry
-            new_price = st.number_input("Price*", min_value=0.00, step=0.01, value=0.00, format="%.2f") # Allow 0 here
+            new_quantity = st.number_input("Quantity*", min_value=0, step=1, value=0)
+            new_price = st.number_input("Price (per unit)*", min_value=0.00, step=0.01, value=0.00, format="%.2f")
             submitted_add = st.form_submit_button("Add Item")
             if submitted_add:
-                if not new_name: st.warning("Item name is required.")
-                # Allow 0 quantity/price for manual adding, but chatbot requires positive
-                elif new_quantity is None or new_price is None: st.warning("Quantity and Price are required.")
+                if not new_name or new_quantity is None or new_price is None: st.warning("Please fill in all required fields (*).")
                 else:
-                    # Check for duplicate name before adding via form
-                    name_exists = any(details.get('name','').lower() == new_name.strip().lower() for details in st.session_state.inventory.values())
-                    if name_exists:
-                        st.error(f"Item named '{new_name}' already exists. Use the update section.")
-                    else:
-                        new_id = generate_item_id()
-                        st.session_state.inventory[new_id] = {"name": new_name.strip(), "quantity": int(new_quantity), "price": float(new_price), "last_updated": datetime.datetime.now()}
-                        st.success(f"✅ Item '{new_name}' ({new_id}) added!")
-                        st.rerun()
-    # Update/Delete Form
+                    new_id = generate_item_id(); st.session_state.inventory[new_id] = {"name": new_name.strip(), "quantity": int(new_quantity), "price": float(new_price), "last_updated": datetime.datetime.now()}
+                    st.success(f"✅ Item '{new_name}' ({new_id}) added successfully!"); st.rerun()
+    # Update/Delete Form... (Keep as before)
     with col_manage:
         st.subheader("✏️ Update / 🗑️ Delete Item")
-        if not st.session_state.inventory: st.info("Inventory empty.")
+        if not st.session_state.inventory: st.info("Inventory is empty. Add items first.")
         else:
             item_options = [(f"{details.get('name', 'N/A')} ({item_id})", item_id) for item_id, details in st.session_state.inventory.items()]; item_options.sort(); item_options.insert(0, ("-- Select Item --", None))
-            selected_option = st.selectbox("Select Item", options=item_options, format_func=lambda option: option[0], key="manage_select"); selected_id = selected_option[1]
+            selected_option = st.selectbox("Select Item to Manage", options=item_options, format_func=lambda option: option[0], key="manage_select"); selected_id = selected_option[1]
             if selected_id:
                 item = st.session_state.inventory.get(selected_id)
                 if item:
                     with st.form(f"update_delete_{selected_id}_form"):
-                        st.write(f"**Managing:** {item.get('name', 'N/A')} ({selected_id})")
-                        update_name = st.text_input("Name*", value=item.get('name', ''))
-                        update_quantity = st.number_input("Qty*", min_value=0, step=1, value=item.get('quantity', 0))
-                        update_price = st.number_input("Price*", min_value=0.00, step=0.01, format="%.2f", value=item.get('price', 0.00))
-                        uc, dc = st.columns(2);
-                        with uc: submitted_update = st.form_submit_button("Update")
-                        with dc: submitted_delete = st.form_submit_button("Delete", type="primary")
+                        st.write(f"**Managing:** {item.get('name', 'N/A')} ({selected_id})"); update_name = st.text_input("Item Name*", value=item.get('name', '')); update_quantity = st.number_input("Quantity*", min_value=0, step=1, value=item.get('quantity', 0)); update_price = st.number_input("Price*", min_value=0.00, step=0.01, format="%.2f", value=item.get('price', 0.00))
+                        update_col, delete_col = st.columns(2)
+                        with update_col: submitted_update = st.form_submit_button("Update Item")
+                        with delete_col: submitted_delete = st.form_submit_button("Delete Item", type="primary")
                         if submitted_update:
-                            if not update_name: st.warning("Item name required.")
-                            elif update_quantity is None or update_price is None: st.warning("Quantity and Price required.")
-                            else: # Check if name changed and if new name conflicts
-                                name_changed = update_name.strip().lower() != item.get('name','').lower()
-                                name_conflict = False
-                                if name_changed:
-                                    name_conflict = any(details.get('name','').lower() == update_name.strip().lower() for id, details in st.session_state.inventory.items() if id != selected_id)
-                                if name_conflict:
-                                    st.error(f"Cannot update: Another item with name '{update_name}' already exists.")
-                                else:
-                                    st.session_state.inventory[selected_id] = {"name": update_name.strip(), "quantity": int(update_quantity), "price": float(update_price), "last_updated": datetime.datetime.now()}
-                                    st.success(f"✅ Updated '{update_name}' ({selected_id})!")
-                                    st.rerun()
+                            if not update_name or update_quantity is None or update_price is None: st.warning("Please ensure all fields have valid values (*).")
+                            else: st.session_state.inventory[selected_id] = {"name": update_name.strip(), "quantity": int(update_quantity), "price": float(update_price), "last_updated": datetime.datetime.now()}; st.success(f"✅ Item '{update_name}' ({selected_id}) updated!"); st.rerun()
                         if submitted_delete:
                             deleted_name = st.session_state.inventory.get(selected_id, {}).get('name', 'Unknown')
-                            if selected_id in st.session_state.inventory: del st.session_state.inventory[selected_id]; st.success(f"🗑️ Deleted '{deleted_name}' ({selected_id})!"); st.rerun()
-                            else: st.warning(f"Item {selected_id} already deleted."); st.rerun()
-                else: st.warning(f"Item {selected_id} not found. Refreshing list.")
+                            if selected_id in st.session_state.inventory: del st.session_state.inventory[selected_id]; st.success(f"🗑️ Item '{deleted_name}' ({selected_id}) deleted!"); st.rerun()
+                            else: st.warning(f"Item {selected_id} was already deleted."); st.rerun()
+                else: st.warning(f"Item {selected_id} no longer seems to exist. Refreshing list.")
 
 elif selected_page == "💬 Chatbot":
     st.header(f"💬 Chat with Inventory Bot ({llm_provider})")
-    if not llm_enabled: st.warning(f"LLM client ({llm_provider}) failed. Chatbot functionality is disabled. Check secrets.", icon="⚠️")
+
+    if not llm_enabled:
+        st.warning(f"LLM client ({llm_provider}) failed to initialize. Chatbot functionality is disabled. Check secrets.", icon="⚠️")
     else:
-        st.info("Ask about status, details, low stock. Add/Update items (e.g., 'add 50 pencils at $0.25 each', 'update laptop quantity to 12').", icon="💡")
-        # Display chat history (robust)
-        chat_container = st.container() # Use a container for chat messages
-        with chat_container:
-            for i, message in enumerate(st.session_state.messages):
-                role = message.get("role", "unknown");
-                with st.chat_message(role):
-                    if role == "tool": 
-                        tool_name = message.get('name', 'unknown'); tool_content = message.get('content', '{}'); 
-                        st.markdown(f"🛠️ **Func Result (`{tool_name}`)**") 
-                        try: 
-                            parsed_content = json.loads(tool_content); st.json(parsed_content) 
-                        except:
-                            json.JSONDecodeError: st.code(tool_content, language=None)
-                    elif message.get("tool_calls"):
-                        if message.get("content"): 
-                            st.markdown(message.get("content"))
-                        calls = message.get("tool_calls", [])
-                        if calls: 
-                            st.markdown("```tool_code") 
-                            for tc in calls: func = getattr(tc, 'function', object()); func_name = getattr(func, 'name', 'unknown'); func_args = getattr(func, 'arguments', '{}'); st.text(f"Func: {func_name}\nArgs: {func_args}"); \
-                            st.markdown("```")
-                    elif message.get("content"): st.markdown(message.get("content"))
-                    else: st.write(f"*(Msg role '{role}' empty)*")
+        st.info("Ask questions about inventory status, item details, or low stock.", icon="💡")
 
-        # Accept user input (place it outside the message display loop)
-        if prompt := st.chat_input("Ask about inventory, add/update items..."):
-            # Add user message to history and display it
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with chat_container: # Display inside the container too
-                 with st.chat_message("user"):
-                    st.markdown(prompt)
+        # **FIXED:** Display chat history (robustly handling dictionary structure)
+        for i, message in enumerate(st.session_state.messages):
+            role = message.get("role", "unknown") # Safely get role
+            with st.chat_message(role):
+                # --- Tool Result Message ---
+                if role == "tool":
+                    tool_name = message.get('name', 'unknown_function')
+                    tool_content = message.get('content', '{}')
+                    st.markdown(f"🛠️ **Function Result (`{tool_name}`)**")
+                    try: # Try to pretty-print JSON content
+                        parsed_content = json.loads(tool_content)
+                        st.json(parsed_content)
+                    except json.JSONDecodeError: # If not valid JSON, show as plain text/code
+                        st.code(tool_content, language=None)
 
-            # Get assistant response and display it
-            with chat_container: # Display inside the container
-                with st.chat_message("assistant"):
-                    message_placeholder = st.empty();
-                    with st.spinner("🤔 Thinking..."):
-                        full_response = run_conversation(prompt);
-                        message_placeholder.markdown(full_response or "*No response generated.*")
+                # --- Assistant Message Requesting Tool Calls ---
+                elif message.get("tool_calls"):
+                    # Display any textual content that might accompany the tool call request
+                    if message.get("content"):
+                        st.markdown(message.get("content"))
+                    # Display the requested tool calls
+                    calls = message.get("tool_calls", []) # Default to empty list
+                    if calls: # Check if list is not empty and has items
+                        st.markdown("```tool_code") # Use a custom language for potential styling
+                        for tc in calls:
+                            # Safely access nested attributes using getattr
+                            func = getattr(tc, 'function', object()) # Get function object safely
+                            func_name = getattr(func, 'name', 'unknown')
+                            func_args = getattr(func, 'arguments', '{}')
+                            st.text(f"Function: {func_name}\nArgs: {func_args}")
+                        st.markdown("```")
+
+                # --- Regular User or Assistant Text Message ---
+                elif message.get("content"):
+                    st.markdown(message.get("content"))
+
+                # --- Fallback for messages with unexpected structure ---
+                else:
+                    st.write(f"*(Message with role '{role}' has no displayable content)*")
+
+
+        # Accept user input
+        if prompt := st.chat_input("Ask about inventory (e.g., 'low stock', 'details of Laptop')..."):
+            # Display user message immediately
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            # Display thinking spinner and then the response
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                with st.spinner("🤔 Thinking..."):
+                    # Get LLM response (handles function calling)
+                    full_response = run_conversation(prompt)
+                    message_placeholder.markdown(full_response or "*Assistant did not generate a response.*")
+
             # Automatically scroll chat to bottom (often needed after adding messages)
             # This JS is a bit hacky but common in Streamlit for chat
             st.components.v1.html("""
