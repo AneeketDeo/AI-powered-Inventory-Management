@@ -84,7 +84,7 @@ except Exception as e:
     func_name = last_frame.name
     line_content = last_frame.line
     st.sidebar.error(f"Error initializing {llm_provider}: {e}. Chatbot disabled." + str(line_no) + str(line_content), icon="⚠️")
-    st.sidebar.error(f"Exception:{e}, line no:{line_no}, file name:{file_name}, function name:{func_name}, line content:{line_content}", icon="⚠️")
+    st.sidebar.error(f"Exception:{e}, line no:{line_no}, file name:{file_name}, function name:{func_name}, line content:{line_content}, last frame:{last_frame}", icon="⚠️")
 
 
 # Helper function to reset chat history
