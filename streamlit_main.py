@@ -80,7 +80,13 @@ except openai.AuthenticationError:
 except openai.APIConnectionError as e:
     st.sidebar.error(f"OpenRouter Connection Error. Chatbot disabled. Error: {e}", icon="🚨")
 except Exception as e:
-    st.sidebar.error(f"Error initializing OpenRouter: {e}. Chatbot disabled.", icon="⚠️")
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    # Get the last frame from the traceback
+    last_frame = traceback.extract_tb(exc_traceback)[-1]
+    file_name = last_frame.filename
+    line_no = last_frame.lineno
+    st.sidebar.error(f"Error initializing OpenRouter: {e}. Chatbot disabled." + str(line_no), icon="⚠️")
+
 
 
 # Helper function to reset chat history
