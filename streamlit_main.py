@@ -63,7 +63,7 @@ try:
         api_key=api_key,
     )
     # Quick check to validate credentials and connection during startup
-    client.models.list()
+    openai.Model.list()
 
     llm_provider = "GPT-4o"
     llm_enabled = True
