@@ -56,11 +56,11 @@ llm_enabled = False
 client = None
 
 try:
-    openrouter_key = st.secrets["OPENROUTER_API_KEY"] # Must be set in secrets
+    api_key = st.secrets["GITHUB_TOKEN"] # Must be set in secrets
 
     client = OpenAI(
-        api_key=openrouter_key,
-        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key,
+        base_url="https://models.github.ai/inference",
         default_headers={
             "HTTP-Referer": OPENROUTER_REFERRER_URL, # Helps OpenRouter track usage source
             "X-Title": OPENROUTER_APP_TITLE,         # Helps OpenRouter track usage source
@@ -69,7 +69,7 @@ try:
     # Quick check to validate credentials and connection during startup
     client.models.list()
 
-    llm_provider = "OpenRouter"
+    llm_provider = "GPT 4o"
     llm_enabled = True
     
 
@@ -430,7 +430,7 @@ def run_conversation(user_prompt):
         return f"LLM client ({llm_provider}) not available. Cannot process request."
 
     # --- Choose Model ---
-    model_name = "deepseek/deepseek-r1-zero:free" # A reliable choice for OpenAI-style function calling
+    model_name = "openai/gpt-4o" # A reliable choice for OpenAI-style function calling
 
     # --- Prepare History ---
     st.session_state.messages.append({"role": "user", "content": user_prompt})
