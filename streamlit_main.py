@@ -68,7 +68,7 @@ try:
     base_url = "https://openrouter.ai/api/v1"
 
     # model = "openai/gpt-4o"
-    model = "deepseek/deepseek-prover-v2:free"
+    model = "deepseek/deepseek-v3-base:free"
 
     client = OpenAI(
         base_url=base_url,
