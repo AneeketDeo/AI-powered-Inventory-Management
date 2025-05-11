@@ -858,7 +858,7 @@ elif selected_page == "💬 Chatbot":
 
 elif selected_page == "📄 OCR Process":
     st.header("📄 Process Invoice/Bill via OCR")
-    st.info("Upload an image of an invoice, bill, or stock list to extract text and attempt to add items to inventory.", icon="camera")
+    st.info("Upload an image of an invoice, bill, or stock list to extract text and attempt to add items to inventory.", icon="📷")
 
     uploaded_file = st.file_uploader("Choose an image file (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
 
