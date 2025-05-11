@@ -81,7 +81,7 @@ try:
         max_tokens=5
     )
 
-    llm_provider = "GPT-4o"
+    llm_provider = model
     llm_enabled = True
     
 
@@ -450,7 +450,7 @@ def run_conversation(user_prompt):
         return f"LLM client ({llm_provider}) not available. Cannot process request."
 
     # --- Choose Model ---
-    model_name = "openai/gpt-4o" # A reliable choice for OpenAI-style function calling
+    model_name = model # A reliable choice for OpenAI-style function calling
 
     # --- Prepare History ---
     st.session_state.messages.append({"role": "user", "content": user_prompt})
