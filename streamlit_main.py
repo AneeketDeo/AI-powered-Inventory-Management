@@ -68,7 +68,7 @@ try:
     base_url = "https://openrouter.ai/api/v1"
 
     # model = "openai/gpt-4o"
-    model = "google/gemini-2.5-pro-exp-03-25"
+    model = "google/gemma-3-27b-it:free"
 
     client = OpenAI(
         base_url=base_url,
