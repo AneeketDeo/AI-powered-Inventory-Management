@@ -1,5 +1,4 @@
-
 tesseract-ocr
 libleptonica-dev
-libtesseract-dev # Often needed for pytesseract to correctly find Tesseract
-tesseract-ocr-eng # Or other language packs like tesseract-ocr-deu, tesseract-ocr-all
+libtesseract-dev 
+tesseract-ocr-eng 
