@@ -61,15 +61,22 @@ llm_enabled = False
 client = None
 
 try:
-    api_key = st.secrets["GITHUB_TOKEN"] # Must be set in secrets
+    # api_key = st.secrets["GITHUB_TOKEN"] # Must be set in secrets
+    api_key = st.secrets["OPENROUTER_KEY"]
+
+    # base_url="https://models.github.ai/inference"
+    base_url = "https://openrouter.ai/api/v1"
+
+    # model = "openai/gpt-4o"
+    model = "deepseek/deepseek-prover-v2:free"
 
     client = OpenAI(
-        base_url="https://models.github.ai/inference",
+        base_url=base_url,
         api_key=api_key,
     )
     # Quick check to validate credentials and connection during startup
     chat = client.chat.completions.create(
-        model="openai/gpt-4o",
+        model=model,
         messages=[{"role": "user", "content": "Hello!"}],
         max_tokens=5
     )
