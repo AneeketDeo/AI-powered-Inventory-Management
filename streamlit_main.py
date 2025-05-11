@@ -8,6 +8,11 @@ import datetime
 import random
 import json
 
+# --- NEW: OCR Libraries ---
+import pytesseract
+from PIL import Image # Pillow library for image handling
+import io # For handling image bytes
+
 # --- LLM Interaction ---
 import openai
 from openai import OpenAI
@@ -647,7 +652,7 @@ with st.sidebar:
 
     # --- Navigation ---
     st.subheader("Navigation")
-    page_options = ["📊 View Inventory", "📝 Manage Items", "💬 Chatbot"]
+    page_options = ["📊 View Inventory", "📝 Manage Items", "💬 Chatbot", "📄 OCR Process"]
     selected_page = st.radio(
         "Go to:",
         page_options,
@@ -849,6 +854,79 @@ elif selected_page == "💬 Chatbot":
 
     # Inject the HTML/CSS/JS into the Streamlit app
     st.markdown(button_html, unsafe_allow_html=True)
+
+
+elif selected_page == "📄 OCR Process":
+    st.header("📄 Process Invoice/Bill via OCR")
+    st.info("Upload an image of an invoice, bill, or stock list to extract text and attempt to add items to inventory.", icon="camera")
+
+    uploaded_file = st.file_uploader("Choose an image file (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
+
+    if uploaded_file is not None:
+        try:
+            image = Image.open(uploaded_file)
+            st.image(image, caption=f"Uploaded: {uploaded_file.name}", use_column_width=True)
+            st.divider()
+
+            if st.button("🔍 Extract Text from Image", key="extract_text_ocr"):
+                with st.spinner("Processing image with OCR..."):
+                    try:
+                        # Perform OCR
+                        extracted_text = pytesseract.image_to_string(image)
+                        st.session_state.ocr_text = extracted_text # Store in session state
+                        st.success("Text extracted successfully!")
+                    except pytesseract.TesseractNotFoundError:
+                        st.error("Tesseract OCR engine not found. Please ensure it's installed and in your PATH.")
+                        st.error("See: https://tesseract-ocr.github.io/tessdoc/Installation.html")
+                        st.session_state.ocr_text = None
+                    except Exception as e:
+                        st.error(f"An error occurred during OCR: {e}")
+                        st.session_state.ocr_text = None
+
+        except Exception as e:
+            st.error(f"Error opening or displaying image: {e}")
+            st.session_state.ocr_text = None # Clear any previous OCR text on image error
+
+    # --- Display Extracted Text and Parsing Options ---
+    if 'ocr_text' in st.session_state and st.session_state.ocr_text:
+        st.subheader("Extracted Text:")
+        st.text_area("OCR Output", st.session_state.ocr_text, height=300)
+        st.divider()
+        st.subheader("Process Extracted Text")
+        st.write("Use the extracted text to update inventory. This step often requires an LLM to interpret the unstructured text.")
+
+        if st.button("🤖 Attempt to Add/Update Inventory using LLM", key="process_ocr_llm"):
+            if not llm_enabled or not client:
+                st.warning("LLM client is not available. Cannot process text with LLM.")
+            else:
+                ocr_prompt = f"""
+                The following text was extracted from an image using OCR. It likely represents an invoice, bill, or stock list.
+                Your task is to identify items, their quantities, and their prices from this text.
+                For each item found, you should call the 'add_inventory_item' function with its name, quantity, and price.
+                If an item seems to already exist (e.g., the text implies an update to an existing item's quantity or price),
+                you should call the 'update_inventory_item' function, providing the item_identifier and the new quantity or price.
+                Prioritize 'add_inventory_item' for new entries. Be careful with parsing; quantities and prices must be numbers.
+                If information is ambiguous or missing for an item, skip it rather than guessing.
+
+                OCR Text:
+                ---
+                {st.session_state.ocr_text}
+                ---
+
+                Based on this text, what inventory actions (add or update) should be taken?
+                """
+                with st.spinner("🤖 LLM is processing OCR text to identify inventory actions..."):
+                    # The run_conversation function will handle the tool calls (add/update)
+                    # We are essentially using the LLM as the "user" driving the tool calls
+                    # based on the OCR text.
+                    llm_interpretation_response = run_conversation(ocr_prompt)
+
+                    # Display LLM's summary of actions or final interpretation
+                    st.markdown("#### LLM Processing Summary:")
+                    st.info(llm_interpretation_response or "LLM did not provide a summary of actions.")
+                    st.success("Inventory update attempt finished. Please check the 'View Inventory' page.")
+                    # Rerun to reflect any inventory changes in other views
+                    st.rerun()
 
             # Define the CSS styles separately for clarity
 #             button_css = """
