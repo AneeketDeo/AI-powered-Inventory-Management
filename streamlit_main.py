@@ -933,7 +933,7 @@ elif selected_page == "📄 OCR Process":
                     st.info(llm_interpretation_response or "LLM did not provide a summary of actions.")
                     st.success("Inventory update attempt finished. Please check the 'View Inventory' page.")
                     # Rerun to reflect any inventory changes in other views
-                    st.rerun()
+                    # st.rerun()
 
             # Define the CSS styles separately for clarity
 #             button_css = """
