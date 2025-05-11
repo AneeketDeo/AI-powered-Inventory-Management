@@ -1,4 +1,4 @@
-# packages.txt
+
 tesseract-ocr
 libleptonica-dev
 libtesseract-dev # Often needed for pytesseract to correctly find Tesseract
