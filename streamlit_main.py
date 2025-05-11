@@ -913,7 +913,7 @@ elif selected_page == "📄 OCR Process":
                 If an item seems to already exist (e.g., the text implies an update to an existing item's quantity or price),
                 you should call the 'update_inventory_item' function, providing the item_identifier and the new quantity or price.
                 Prioritize 'add_inventory_item' for new entries. Be careful with parsing; quantities and prices must be numbers.
-                If information is ambiguous or missing for an item, skip it rather than guessing.
+                If information is ambiguous or missing for an item, skip it rather than guessing. Just provide the items once, currently you are providing multiple times.
 
                 OCR Text:
                 ---
