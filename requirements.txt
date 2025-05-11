@@ -3,3 +3,4 @@ pandas
 openai
 pytesseract
 Pillow
+tesseract-ocr
