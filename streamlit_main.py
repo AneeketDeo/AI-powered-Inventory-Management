@@ -61,14 +61,14 @@ llm_enabled = False
 client = None
 
 try:
-    # api_key = st.secrets["GITHUB_TOKEN"] # Must be set in secrets
-    api_key = st.secrets["OPENROUTER_KEY"]
+    api_key = st.secrets["GITHUB_TOKEN"] # Must be set in secrets
+    # api_key = st.secrets["OPENROUTER_KEY"]
 
-    # base_url="https://models.github.ai/inference"
-    base_url = "https://openrouter.ai/api/v1"
+    base_url="https://models.github.ai/inference"
+    # base_url = "https://openrouter.ai/api/v1"
 
-    # model = "openai/gpt-4o"
-    model = "mistralai/mistral-small-3.1-24b-instruct:free"
+    model = "openai/gpt-4o"
+    # model = "mistralai/mistral-small-3.1-24b-instruct:free"
 
     client = OpenAI(
         base_url=base_url,
