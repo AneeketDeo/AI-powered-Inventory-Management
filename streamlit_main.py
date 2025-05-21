@@ -100,7 +100,7 @@ try:
     # response - chat
     response = client.models.generate_content(
         model=model, 
-        content="Hello!",
+        contents="Hello!",
         max_tokens=5
     )
 
