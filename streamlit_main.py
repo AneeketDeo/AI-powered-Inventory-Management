@@ -434,13 +434,76 @@ available_functions = {
 }
 
 # Define tool structure for the LLM API call
+# function_declarations = [
+#     types.FunctionDeclaration(name="get_inventory_summary", description="Get a summary of the inventory status: total distinct items and total quantity."),
+#     types.FunctionDeclaration(name="get_item_details", description="Get details (quantity, price) for a specific item by its name or Item ID.", parameters={"type": "object", "properties": { "item_identifier": {"type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item."}}, "required":["item_identifier"]}),
+#     types.FunctionDeclaration(name="find_low_stock_items", description="Find items in the inventory that are low in stock, based on a quantity threshold.", parameters={"type": "object", "properties": { "quantity_threshold": {"type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user."}}, "required":[]}),
+#     types.FunctionDeclaration(name="add_inventory_item", description="Adds a new item to the inventory system. Requires the item's name, quantity, and price.", parameters={"type": "object", "properties": { "item_name": {"type": "string", "description": "The name of the new item to add."}, "quantity": {"type": "integer", "description": "The initial stock quantity for the new item."}, "price": {"type": "number", "description": "The price per unit for the new item."}}, "required":["item_name", "quantity", "price"]}),
+#     types.FunctionDeclaration(name="update_inventory_item", description="Updates an existing item in the inventory. Requires the item's current name or ID, and at least one field to update (new name, new quantity, or new price).", parameters={"type": "object", "properties": {"item_identifier": {"type": "string", "description": "The current name or Item ID of the item to be updated."}, "new_name": {"type": "string", "description": "The new name for the item (optional)."}, "new_quantity": {"type": "integer", "description": "The new stock quantity for the item (optional)."}, "new_price": {"type": "number", "description": "The new price per unit for the item (optional)."}}, "required":["item_identifier"]}),
+# ]
+# Define tool structure for the LLM API call
 function_declarations = [
-    types.FunctionDeclaration(name="get_inventory_summary", description="Get a summary of the inventory status: total distinct items and total quantity."),
-    types.FunctionDeclaration(name="get_item_details", description="Get details (quantity, price) for a specific item by its name or Item ID.", parameters={"type": "object", "properties": { "item_identifier": {"type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item."}}, "required":["item_identifier"]}),
-    types.FunctionDeclaration(name="find_low_stock_items", description="Find items in the inventory that are low in stock, based on a quantity threshold.", parameters={"type": "object", "properties": { "quantity_threshold": {"type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user."}}, "required":[]}),
-    types.FunctionDeclaration(name="add_inventory_item", description="Adds a new item to the inventory system. Requires the item's name, quantity, and price.", parameters={"type": "object", "properties": { "item_name": {"type": "string", "description": "The name of the new item to add."}, "quantity": {"type": "integer", "description": "The initial stock quantity for the new item."}, "price": {"type": "number", "description": "The price per unit for the new item."}}, "required":["item_name", "quantity", "price"]}),
-    types.FunctionDeclaration(name="update_inventory_item", description="Updates an existing item in the inventory. Requires the item's current name or ID, and at least one field to update (new name, new quantity, or new price).", parameters={"type": "object", "properties": {"item_identifier": {"type": "string", "description": "The current name or Item ID of the item to be updated."}, "new_name": {"type": "string", "description": "The new name for the item (optional)."}, "new_quantity": {"type": "integer", "description": "The new stock quantity for the item (optional)."}, "new_price": {"type": "number", "description": "The new price per unit for the item (optional)."}}, "required":["item_identifier"]}),
+    {
+        "name": "get_inventory_summary",
+        "description": "Get a summary of the inventory status: total distinct items and total quantity."
+    },
+    {
+        "name": "get_item_details",
+        "description": "Get details (quantity, price) for a specific item by its name or Item ID.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "item_identifier": {
+                    "type": "string",
+                    "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item."
+                }
+            },
+            "required": ["item_identifier"]
+        }
+    },
+    {
+        "name": "find_low_stock_items",
+        "description": "Find items in the inventory that are low in stock, based on a quantity threshold.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "quantity_threshold": {
+                    "type": "integer",
+                    "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user."
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "add_inventory_item",
+        "description": "Adds a new item to the inventory system. Requires the item's name, quantity, and price.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "item_name": {"type": "string", "description": "The name of the new item to add."},
+                "quantity": {"type": "integer", "description": "The initial stock quantity for the new item."},
+                "price": {"type": "number", "description": "The price per unit for the new item."}
+            },
+            "required": ["item_name", "quantity", "price"]
+        }
+    },
+    {
+        "name": "update_inventory_item",
+        "description": "Updates an existing item in the inventory. Requires the item's current name or ID, and at least one field to update (new name, new quantity, or new price).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "item_identifier": {"type": "string", "description": "The current name or Item ID of the item to be updated."},
+                "new_name": {"type": "string", "description": "The new name for the item (optional)."},
+                "new_quantity": {"type": "integer", "description": "The new stock quantity for the item (optional)."},
+                "new_price": {"type": "number", "description": "The new price per unit for the item (optional)."}
+            },
+            "required": ["item_identifier"]
+        }
+    },
 ]
+
 
 # --- LLM Interaction Logic ---
 # ----------------------------------- > OLD < -----------------------------------
@@ -663,10 +726,15 @@ def run_conversation(user_prompt):
     st.session_state.messages.append({"role": "user", "content": [{"text": user_prompt}]}) # Store in Gemini format for history
 
     try:
-        # Send message with tools configuration
-        response = chat.send_message(
-            user_prompt,
-            tools=[function_declarations] # Pass the Tool object
+        # Configure the client and tools
+        tools = types.Tool(function_declarations=function_declarations)
+        config = types.GenerateContentConfig(tools=[tools])
+
+        # Send request with function declarations
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=user_prompt,
+            config=config,
         )
 
         # --- Process Gemini's Response ---
