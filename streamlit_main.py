@@ -16,9 +16,9 @@ import io # For handling image bytes
 # --- LLM Interaction ---
 import openai
 from openai import OpenAI
-from google import genai
+# from google import genai
 from google.genai import types
-import google.generativeai as generativeai
+import google.generativeai as genai
 
 
 
@@ -92,20 +92,25 @@ try:
     # model
     model = "gemini-2.0-flash"
 
+    # ----------------------------------- > NEW < -----------------------------------
+    gemini_model = genai.GenerativeModel(model)
+
+    # ----------------------------------- > OLD < -----------------------------------
+
     # client
-    client = genai.Client(api_key= api_key)
+    # client = genai.Client(api_key= api_key)
 
 
 
-    # response - chat
-    response = client.models.generate_content(
-        model=model, 
-        contents="Hello!",
-        config=types.GenerateContentConfig(
-            max_output_tokens=5,
-            temperature=0.1
-        )
-    )
+    # # response - chat
+    # response = client.models.generate_content(
+    #     model=model, 
+    #     contents="Hello!",
+    #     config=types.GenerateContentConfig(
+    #         max_output_tokens=5,
+    #         temperature=0.1
+    #     )
+    # )
 
     llm_provider = model
     llm_enabled = True
@@ -438,184 +443,336 @@ function_declarations = [
 ]
 
 # --- LLM Interaction Logic ---
+# ----------------------------------- > OLD < -----------------------------------
+# def run_conversation(user_prompt):
+#     """Sends conversation to OpenRouter, handles tool calls, returns final response."""
+#     if not client or not llm_enabled:
+#         return f"LLM client ({llm_provider}) not available. Cannot process request."
+
+#     # --- Choose Model ---
+#     model_name = model # A reliable choice for OpenAI-style function calling
+
+#     # --- Prepare History ---
+#     st.session_state.messages.append({"role": "user", "content": user_prompt})
+#     messages_for_api = st.session_state.messages
+
+#     try:
+#         # Configure the client and tools
+#         tools = types.Tool(function_declarations=function_declarations)
+#         config = types.GenerateContentConfig(tools=[tools])
+
+#         # Send request with function declarations
+#         response = client.models.generate_content(
+#             model="gemini-2.0-flash",
+#             contents=user_prompt,
+#             config=config,
+#         )
+
+#         # Check for a function call
+#         response_message = response.candidates[0].content # Gemini Content object
+#         tool_calls = response_message.parts[0].function_call
+
+#         # --- Handle Tool Calls (if any) ---
+#         if tool_calls:
+#             # **FIX:** Append the assistant's response as a dictionary
+#             assistant_message_dict = {
+#                 "role": response_message.role,
+#                 "content": response_message.content, # May be None
+#                 "tool_calls": response_message.tool_calls # Store the list of tool call objects
+#             }
+#             st.session_state.messages.append(assistant_message_dict)
+
+#             # Execute tools and collect results
+#             tool_results_messages = []
+#             for tool_call in tool_calls:
+#                 function_name = tool_call.function.name
+#                 function_to_call = available_functions.get(function_name)
+#                 function_args_str = tool_call.function.arguments
+#                 function_response = None # Initialize response variable
+
+#                 if not function_to_call:
+#                     function_response = json.dumps({"status": "error", "message": f"Tool '{function_name}' not found or not implemented."})
+#                 else:
+#                     try:
+#                         function_args = json.loads(function_args_str)
+
+#                         # --- Specific Function Argument Handling ---
+#                         if function_name == "find_low_stock_items":
+#                              threshold = function_args.get("quantity_threshold", 10)
+#                              function_response = function_to_call(quantity_threshold=threshold)
+
+#                         elif function_name == "get_item_details":
+#                              identifier = function_args.get("item_identifier")
+#                              if identifier: function_response = function_to_call(item_identifier=identifier)
+#                              else: function_response = json.dumps({"status": "error", "message": "Missing 'item_identifier' argument for get_item_details."})
+
+#                         elif function_name == "get_inventory_summary":
+#                              function_response = function_to_call()
+
+#                         elif function_name == "add_inventory_item":
+#                             # Pre-call check for KEY PRESENCE from LLM Arguments
+#                             # We check if the LLM actually included values for the required fields in its function call request.
+#                             name = function_args.get("item_name")
+#                             qty = function_args.get("quantity")
+#                             prc = function_args.get("price")
+
+#                             missing_keys = []
+#                             # Use a stricter check: Is the key present AND is the value not None?
+#                             # (Some LLMs might send null explicitly if they don't know)
+#                             if function_args.get("item_name") is None: missing_keys.append("item_name")
+#                             if function_args.get("quantity") is None: missing_keys.append("quantity")
+#                             if function_args.get("price") is None: missing_keys.append("price")
+
+#                             if missing_keys:
+#                                 # **CONVERSATIONAL ERROR FEEDBACK for LLM:**
+#                                 # Tell the LLM precisely how to respond to the user to get the missing info.
+#                                 # Use placeholders like {item_name} that the LLM can fill if the name *was* provided.
+#                                 provided_name = name if name else "(unspecified item)" # Use provided name if available
+#                                 details_needed = ', '.join(missing_keys).replace("item_name","name").replace("quantity","quantity").replace("price","price")
+
+#                                 # This message is designed to be the core of the LLM's *next conversational turn*
+#                                 user_facing_request = f"Okay, I can try to add '{provided_name}', but I need more details. Could you please provide the {details_needed} for this item?"
+
+#                                 function_response = json.dumps({
+#                                     "status": "error_user_input_required", # Specific status
+#                                     # The 'message' should guide the LLM's response generation directly
+#                                     "message": user_facing_request
+#                                 })
+#                             else:
+#                                 # Keys and non-None values were provided by LLM.
+#                                 # Proceed to call the function for value validation (e.g., positive checks).
+#                                 function_response = function_to_call(item_name=name, quantity=qty, price=prc)
+#                         elif function_name == "update_inventory_item":
+#                             identifier = function_args.get("item_identifier")
+#                             new_name = function_args.get("new_name") # Will be None if not provided
+#                             new_qty = function_args.get("new_quantity") # Will be None if not provided
+#                             new_prc = function_args.get("new_price") # Will be None if not provided
+
+#                             if not identifier:
+#                                 function_response = json.dumps({"status": "error", "message": "Missing 'item_identifier' argument for update_inventory_item."})
+#                             elif new_name is None and new_qty is None and new_prc is None:
+#                                 # Check if at least one update field was given by LLM
+#                                 function_response = json.dumps({"status": "error", "message": "Cannot update item. No new name, quantity, or price was specified. Ask the user what they want to change."})
+#                             else:
+#                                 # Call update function with provided args (function handles internal validation)
+#                                 function_response = function_to_call(
+#                                     item_identifier=identifier,
+#                                     new_name=new_name,
+#                                     new_quantity=new_qty,
+#                                     new_price=new_prc
+#                                 )
+
+#                         else: # Fallback for any unexpected function name
+#                             function_response = json.dumps({"status": "error", "message": f"Function '{function_name}' is recognized but argument handling is not implemented."})
+
+#                     except json.JSONDecodeError: function_response = json.dumps({"status": "error", "message": f"Invalid arguments format from LLM for {function_name}: {function_args_str}"})
+#                     except Exception as e: function_response = json.dumps({"status": "error", "message": f"Error preparing to execute {function_name}: {str(e)}"})
+
+
+#                 # Prepare message for API with tool result (ensure response is not None)
+#                 if function_response is None:
+#                     function_response = json.dumps({"status": "error", "message": f"Execution failed to produce a result for {function_name}."})
+
+#                 tool_results_messages.append({
+#                     "tool_call_id": tool_call.id, "role": "tool", "name": function_name,
+#                     "content": function_response, # Function output (JSON string)
+#                 })
+
+#             # Add all tool results (dictionaries) to the main message history
+#             st.session_state.messages.extend(tool_results_messages)
+
+#             # --- Second API Call: Send tool results back to LLM ---
+#             messages_for_second_call = st.session_state.messages
+#             second_response = client.chat.completions.create(
+#                 model=model_name, messages=messages_for_second_call
+#             )
+#             final_response_content = second_response.choices[0].message.content
+#             # Append final assistant response (dictionary)
+#             st.session_state.messages.append({"role": "assistant", "content": final_response_content})
+#             return final_response_content
+
+#         # --- Handle Direct Response (No Tool Call) ---
+#         else:
+#             final_response_content = response_message.content
+#             # Append direct assistant response (dictionary)
+#             st.session_state.messages.append({"role": "assistant", "content": final_response_content})
+#             return final_response_content
+
+#     # --- Error Handling ---
+#     except openai.APIError as e:
+#         error_msg = f"{llm_provider} API Error ({model_name}): {e}"
+#         st.error(error_msg, icon="🚨")
+#         st.session_state.messages.append({"role": "assistant", "content": f"Sorry, encountered an API error: {e}"})
+#         return f"API Error: {e}"
+#     except Exception as e:
+#         exc_type, exc_value, exc_traceback = sys.exc_info()
+#         # Get the last frame from the traceback
+#         last_frame = traceback.extract_tb(exc_traceback)[-1]
+#         file_name = last_frame.filename
+#         line_no = last_frame.lineno
+#         func_name = last_frame.name
+#         line_content = last_frame.line
+#         print("\n--- Extracted Details (Last Frame) ---")
+#         print(f"File: {file_name}")
+#         print(f"Function: {func_name}")
+#         print(f"Line Number: {line_no}")
+#         print(f"Line Content: {line_content}")
+#         error_msg = f"Unexpected error during LLM interaction ({model_name}): {e}"
+#         st.error(error_msg + str(line_no), icon="🚨")
+#         if st.session_state.messages and st.session_state.messages[-1]["role"] == "user": st.session_state.messages.pop()
+#         st.session_state.messages.append({"role": "assistant", "content": f"Sorry, an unexpected error occurred: {e}"})
+#         return f"Unexpected Error: {e}"
+
+# ----------------------------------- > NEW < -----------------------------------
 def run_conversation(user_prompt):
-    """Sends conversation to OpenRouter, handles tool calls, returns final response."""
-    if not client or not llm_enabled:
-        return f"LLM client ({llm_provider}) not available. Cannot process request."
+    if not gemini_model or not llm_enabled:
+        return f"LLM client ({llm_provider}) not available."
 
-    # --- Choose Model ---
-    model_name = model # A reliable choice for OpenAI-style function calling
+    # Gemini chat history needs specific structure: role, parts (list of content)
+    # Convert our session_state.messages to Gemini format
+    gemini_history = []
+    for msg in st.session_state.messages:
+        role = "user" if msg.get("role") == "user" else "model" # Gemini uses "model" for assistant
+        parts = []
+        if msg.get("content"): # Standard text content
+            # Ensure content is in the [{"text": "..."}] structure for Gemini
+            if isinstance(msg.get("content"), list) and msg.get("content") and "text" in msg.get("content")[0]:
+                parts = msg.get("content")
+            else: # If it's just a string, wrap it
+                parts = [{"text": str(msg.get("content"))}]
 
-    # --- Prepare History ---
-    st.session_state.messages.append({"role": "user", "content": user_prompt})
-    messages_for_api = st.session_state.messages
+        elif msg.get("tool_calls"): # Assistant's request to call tools (OpenAI format)
+            # Convert OpenAI tool_calls to Gemini FunctionCall parts
+            for tc in msg.get("tool_calls"):
+                parts.append({"function_call": {"name": tc.function.name, "args": json.loads(tc.function.arguments)}})
+
+        elif msg.get("role") == "tool": # Result from a tool call
+            # Convert our tool result to Gemini FunctionResponse parts
+            parts.append({"function_response": {"name": msg.get("name"), "response": {"result": msg.get("content")}}}) # Gemini expects response in a specific "result" field sometimes, or direct
+
+        if parts: # Only add if there's something to add
+            gemini_history.append({"role": role, "parts": parts})
+
+
+    # Start a new chat session with Gemini (or use an existing one if managing longer convos)
+    # For simplicity here, we re-initialize chat for each turn with history.
+    # More advanced use might keep the `chat` object alive.
+    chat = gemini_model.start_chat(history=gemini_history)
+
+    # Add current user prompt to session state (using our original dict format for display consistency)
+    st.session_state.messages.append({"role": "user", "content": [{"text": user_prompt}]}) # Store in Gemini format for history
 
     try:
-        # Configure the client and tools
-        tools = types.Tool(function_declarations=function_declarations)
-        config = types.GenerateContentConfig(tools=[tools])
-
-        # Send request with function declarations
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=user_prompt,
-            config=config,
+        # Send message with tools configuration
+        response = chat.send_message(
+            user_prompt,
+            tools=[gemini_tool_config] # Pass the Tool object
         )
 
-        # Check for a function call
+        # --- Process Gemini's Response ---
         response_message = response.candidates[0].content # Gemini Content object
-        tool_calls = response_message.parts[0].function_call
+        final_text_response = None
 
-        # --- Handle Tool Calls (if any) ---
-        if tool_calls:
-            # **FIX:** Append the assistant's response as a dictionary
-            assistant_message_dict = {
-                "role": response_message.role,
-                "content": response_message.content, # May be None
-                "tool_calls": response_message.tool_calls # Store the list of tool call objects
-            }
-            st.session_state.messages.append(assistant_message_dict)
+        # Check for function calls requested by Gemini
+        if response_message.parts and response_message.parts[0].function_call:
+            fc = response_message.parts[0].function_call
+            function_name = fc.name
+            function_args = dict(fc.args) # fc.args is a Struct, convert to dict
 
-            # Execute tools and collect results
-            tool_results_messages = []
-            for tool_call in tool_calls:
-                function_name = tool_call.function.name
-                function_to_call = available_functions.get(function_name)
-                function_args_str = tool_call.function.arguments
-                function_response = None # Initialize response variable
+            # Store Gemini's intent to call function (convert to our display format)
+            # This part needs careful mapping if we want to reuse OpenAI-style display
+            st.session_state.messages.append({
+                "role": "assistant", # Our display role
+                "content": None, # Gemini might not have text if it's just a function call
+                "gemini_function_call": {"name": function_name, "args": function_args} # Store for display
+            })
 
-                if not function_to_call:
-                    function_response = json.dumps({"status": "error", "message": f"Tool '{function_name}' not found or not implemented."})
+            # --- Execute the function ---
+            function_to_call = available_functions.get(function_name)
+            function_response_json_str = None
+
+            # --- Pre-call checks (similar to before) ---
+            if not function_to_call:
+                function_response_json_str = json.dumps({"status": "error", "message": f"Tool '{function_name}' not found."})
+            else:
+                # Pre-call check for add_inventory_item's required args
+                if function_name == "add_inventory_item":
+                    name = function_args.get("item_name")
+                    qty = function_args.get("quantity")
+                    prc = function_args.get("price")
+                    missing_keys = []
+                    if name is None: missing_keys.append("item_name")
+                    if qty is None: missing_keys.append("quantity")
+                    if prc is None: missing_keys.append("price")
+                    if missing_keys:
+                        details_needed = ', '.join(missing_keys).replace("item_name","name")
+                        user_facing_request = f"Okay, I can try to add '{name if name else '(item)'}', but I need more details. Please provide: {details_needed}."
+                        function_response_json_str = json.dumps({"status": "error_user_input_required", "message": user_facing_request })
+                    else:
+                        function_response_json_str = function_to_call(item_name=name, quantity=qty, price=prc)
+                # Pre-call check for update_inventory_item
+                elif function_name == "update_inventory_item":
+                    identifier = function_args.get("item_identifier")
+                    new_name = function_args.get("new_name")
+                    new_qty = function_args.get("new_quantity")
+                    new_prc = function_args.get("new_price")
+                    if not identifier: function_response_json_str = json.dumps({"status": "error", "message": "Missing 'item_identifier' for update."})
+                    elif new_name is None and new_qty is None and new_prc is None: function_response_json_str = json.dumps({"status": "error", "message": "No update field specified. Ask user what to change."})
+                    else: function_response_json_str = function_to_call(item_identifier=identifier, new_name=new_name, new_quantity=new_qty, new_price=new_prc)
+                # Other functions
                 else:
                     try:
-                        function_args = json.loads(function_args_str)
-
-                        # --- Specific Function Argument Handling ---
-                        if function_name == "find_low_stock_items":
-                             threshold = function_args.get("quantity_threshold", 10)
-                             function_response = function_to_call(quantity_threshold=threshold)
-
-                        elif function_name == "get_item_details":
-                             identifier = function_args.get("item_identifier")
-                             if identifier: function_response = function_to_call(item_identifier=identifier)
-                             else: function_response = json.dumps({"status": "error", "message": "Missing 'item_identifier' argument for get_item_details."})
-
-                        elif function_name == "get_inventory_summary":
-                             function_response = function_to_call()
-
-                        elif function_name == "add_inventory_item":
-                            # Pre-call check for KEY PRESENCE from LLM Arguments
-                            # We check if the LLM actually included values for the required fields in its function call request.
-                            name = function_args.get("item_name")
-                            qty = function_args.get("quantity")
-                            prc = function_args.get("price")
-
-                            missing_keys = []
-                            # Use a stricter check: Is the key present AND is the value not None?
-                            # (Some LLMs might send null explicitly if they don't know)
-                            if function_args.get("item_name") is None: missing_keys.append("item_name")
-                            if function_args.get("quantity") is None: missing_keys.append("quantity")
-                            if function_args.get("price") is None: missing_keys.append("price")
-
-                            if missing_keys:
-                                # **CONVERSATIONAL ERROR FEEDBACK for LLM:**
-                                # Tell the LLM precisely how to respond to the user to get the missing info.
-                                # Use placeholders like {item_name} that the LLM can fill if the name *was* provided.
-                                provided_name = name if name else "(unspecified item)" # Use provided name if available
-                                details_needed = ', '.join(missing_keys).replace("item_name","name").replace("quantity","quantity").replace("price","price")
-
-                                # This message is designed to be the core of the LLM's *next conversational turn*
-                                user_facing_request = f"Okay, I can try to add '{provided_name}', but I need more details. Could you please provide the {details_needed} for this item?"
-
-                                function_response = json.dumps({
-                                    "status": "error_user_input_required", # Specific status
-                                    # The 'message' should guide the LLM's response generation directly
-                                    "message": user_facing_request
-                                })
-                            else:
-                                # Keys and non-None values were provided by LLM.
-                                # Proceed to call the function for value validation (e.g., positive checks).
-                                function_response = function_to_call(item_name=name, quantity=qty, price=prc)
-                        elif function_name == "update_inventory_item":
-                            identifier = function_args.get("item_identifier")
-                            new_name = function_args.get("new_name") # Will be None if not provided
-                            new_qty = function_args.get("new_quantity") # Will be None if not provided
-                            new_prc = function_args.get("new_price") # Will be None if not provided
-
-                            if not identifier:
-                                function_response = json.dumps({"status": "error", "message": "Missing 'item_identifier' argument for update_inventory_item."})
-                            elif new_name is None and new_qty is None and new_prc is None:
-                                # Check if at least one update field was given by LLM
-                                function_response = json.dumps({"status": "error", "message": "Cannot update item. No new name, quantity, or price was specified. Ask the user what they want to change."})
-                            else:
-                                # Call update function with provided args (function handles internal validation)
-                                function_response = function_to_call(
-                                    item_identifier=identifier,
-                                    new_name=new_name,
-                                    new_quantity=new_qty,
-                                    new_price=new_prc
-                                )
-
-                        else: # Fallback for any unexpected function name
-                            function_response = json.dumps({"status": "error", "message": f"Function '{function_name}' is recognized but argument handling is not implemented."})
-
-                    except json.JSONDecodeError: function_response = json.dumps({"status": "error", "message": f"Invalid arguments format from LLM for {function_name}: {function_args_str}"})
-                    except Exception as e: function_response = json.dumps({"status": "error", "message": f"Error preparing to execute {function_name}: {str(e)}"})
+                        function_response_json_str = function_to_call(**function_args) # Call with unpacked args
+                    except TypeError as te: # Handles case where function doesn't expect certain args (e.g. summary)
+                        if not function_args: # If no args were passed, and it's expected (like summary)
+                            function_response_json_str = function_to_call()
+                        else:
+                            function_response_json_str = json.dumps({"status":"error", "message":f"Argument mismatch for {function_name}: {te}"})
+                    except Exception as e_exec:
+                        function_response_json_str = json.dumps({"status":"error", "message":f"Error executing {function_name}: {e_exec}"})
 
 
-                # Prepare message for API with tool result (ensure response is not None)
-                if function_response is None:
-                    function_response = json.dumps({"status": "error", "message": f"Execution failed to produce a result for {function_name}."})
+            # Send function response back to Gemini
+            # Gemini expects the result in a specific field, often 'result' or just the value.
+            # Our functions return JSON strings, which is fine.
+            st.session_state.messages.append({
+                "role": "tool", # Our display role
+                "name": function_name,
+                "content": function_response_json_str
+            })
 
-                tool_results_messages.append({
-                    "tool_call_id": tool_call.id, "role": "tool", "name": function_name,
-                    "content": function_response, # Function output (JSON string)
-                })
-
-            # Add all tool results (dictionaries) to the main message history
-            st.session_state.messages.extend(tool_results_messages)
-
-            # --- Second API Call: Send tool results back to LLM ---
-            messages_for_second_call = st.session_state.messages
-            second_response = client.chat.completions.create(
-                model=model_name, messages=messages_for_second_call
+            # Send the function response back to the model.
+            # Gemini API requires sending a list of Parts, one of which is the FunctionResponse.
+            response = chat.send_message(
+                # Content part should be a genai.types.Part
+                [genai.types.Part(function_response={"name": function_name, "response": {"result": function_response_json_str}})],
             )
-            final_response_content = second_response.choices[0].message.content
-            # Append final assistant response (dictionary)
-            st.session_state.messages.append({"role": "assistant", "content": final_response_content})
-            return final_response_content
+            # The model should now generate a text response based on the tool's output
+            if response.candidates and response.candidates[0].content.parts:
+                final_text_response = response.candidates[0].content.parts[0].text
+            else:
+                final_text_response = "Tool executed, but I didn't get a follow-up text response."
 
-        # --- Handle Direct Response (No Tool Call) ---
-        else:
-            final_response_content = response_message.content
-            # Append direct assistant response (dictionary)
-            st.session_state.messages.append({"role": "assistant", "content": final_response_content})
-            return final_response_content
+        else: # No function call, direct text response from Gemini
+            if response_message.parts:
+                final_text_response = response_message.parts[0].text
+            else:
+                final_text_response = "I received a response, but it had no text content."
 
-    # --- Error Handling ---
-    except openai.APIError as e:
-        error_msg = f"{llm_provider} API Error ({model_name}): {e}"
-        st.error(error_msg, icon="🚨")
-        st.session_state.messages.append({"role": "assistant", "content": f"Sorry, encountered an API error: {e}"})
-        return f"API Error: {e}"
+        # Store Gemini's final text response (for display)
+        st.session_state.messages.append({"role": "assistant", "content": [{"text": final_text_response}]}) # Gemini format for history
+        return final_text_response
+
     except Exception as e:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        # Get the last frame from the traceback
-        last_frame = traceback.extract_tb(exc_traceback)[-1]
-        file_name = last_frame.filename
-        line_no = last_frame.lineno
-        func_name = last_frame.name
-        line_content = last_frame.line
-        print("\n--- Extracted Details (Last Frame) ---")
-        print(f"File: {file_name}")
-        print(f"Function: {func_name}")
-        print(f"Line Number: {line_no}")
-        print(f"Line Content: {line_content}")
-        error_msg = f"Unexpected error during LLM interaction ({model_name}): {e}"
-        st.error(error_msg + str(line_no), icon="🚨")
-        if st.session_state.messages and st.session_state.messages[-1]["role"] == "user": st.session_state.messages.pop()
-        st.session_state.messages.append({"role": "assistant", "content": f"Sorry, an unexpected error occurred: {e}"})
-        return f"Unexpected Error: {e}"
+        error_msg = f"Error with {llm_provider}: {type(e).__name__} - {e}"
+        # print(f"Full Gemini Error: {e}") # For detailed local debugging
+        st.error(error_msg, icon="🚨")
+        # Ensure the last user message isn't duplicated on retry due to error
+        if st.session_state.messages and st.session_state.messages[-1]["role"] == "user" and st.session_state.messages[-1]["content"][0]["text"] == user_prompt:
+             # This check is a bit complex, might need refinement
+             pass # Don't pop if it's the current one, only if a previous try failed
+        st.session_state.messages.append({"role": "assistant", "content": [{"text": f"Sorry, an error occurred: {e}"}]})
+        return f"Error: {e}"
 
 
 # --- Streamlit UI Layout ---
