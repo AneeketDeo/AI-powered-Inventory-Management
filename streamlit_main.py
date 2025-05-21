@@ -16,6 +16,9 @@ import io # For handling image bytes
 # --- LLM Interaction ---
 import openai
 from openai import OpenAI
+from google import genai
+from google.genai import types
+
 
 # --- Configuration ---
 st.set_page_config(
@@ -61,22 +64,38 @@ llm_enabled = False
 client = None
 
 try:
-    api_key = st.secrets["GITHUB_TOKEN"] # Must be set in secrets
-    # api_key = st.secrets["OPENROUTER_KEY"]
+    # api_key = st.secrets["GITHUB_TOKEN"] # Must be set in secrets
+    # # api_key = st.secrets["OPENROUTER_KEY"]
 
-    base_url="https://models.github.ai/inference"
-    # base_url = "https://openrouter.ai/api/v1"
+    # base_url="https://models.github.ai/inference"
+    # # base_url = "https://openrouter.ai/api/v1"
 
-    model = "openai/gpt-4o"
-    # model = "mistralai/mistral-small-3.1-24b-instruct:free"
+    # model = "openai/gpt-4o"
+    # # model = "mistralai/mistral-small-3.1-24b-instruct:free"
 
-    client = OpenAI(
-        base_url=base_url,
-        api_key=api_key,
-    )
-    # Quick check to validate credentials and connection during startup
-    chat = client.chat.completions.create(
-        model=model,
+    # client = OpenAI(
+    #     base_url=base_url,
+    #     api_key=api_key,
+    # )
+    # # Quick check to validate credentials and connection during startup
+    # chat = client.chat.completions.create(
+    #     model=model,
+    #     messages=[{"role": "user", "content": "Hello!"}],
+    #     max_tokens=5
+    # )
+
+    # Gemini API
+    # api_key - AIzaSyBvu2oED_2XxwhN7JK_H065plvOlj27cLQ
+    api_key = st.secrets["GEMINI_TOKEN"] # Must be set in secrets
+    # model
+    model = "gemini-2.0-flash"
+
+    # client
+    client = genai.Client(api_key= api_key)
+
+    # response - chat
+    response = client.models.generate_content(
+        model=model, 
         messages=[{"role": "user", "content": "Hello!"}],
         max_tokens=5
     )
@@ -403,46 +422,23 @@ available_functions = {
 }
 
 # Define tool structure for the LLM API call
+# tools = [
+#     # ... (keep existing definitions for get_summary, get_details, find_low_stock, add_item) ...
+#     { "type": "function", "function": { "name": "get_inventory_summary", "description": "Get a summary of the inventory status: total distinct items and total quantity." }},
+#     { "type": "function", "function": { "name": "get_item_details", "description": "Get details (quantity, price) for a specific item by its name or Item ID.", "parameters": { "type": "object", "properties": { "item_identifier": { "type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item." }}, "required": ["item_identifier"] }}},
+#     { "type": "function", "function": { "name": "find_low_stock_items", "description": "Find items in the inventory that are low in stock, based on a quantity threshold.", "parameters": { "type": "object", "properties": { "quantity_threshold": { "type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user." }}, "required": [] }}},
+#     { "type": "function", "function": { "name": "add_inventory_item", "description": "Adds a new item to the inventory system. Requires the item's name, quantity, and price.", "parameters": { "type": "object", "properties": { "item_name": { "type": "string", "description": "The name of the new item to add." }, "quantity": { "type": "integer", "description": "The initial stock quantity for the new item." }, "price": { "type": "number", "description": "The price per unit for the new item." }}, "required": ["item_name", "quantity", "price"] }}},
+#     {"type": "function", "function": {"name": "update_inventory_item", "description": "Updates an existing item in the inventory. Requires the item's current name or ID, and at least one field to update (new name, new quantity, or new price).", "parameters": {"type": "object", "properties": {"item_identifier": {"type": "string", "description": "The current name or Item ID of the item to be updated."}, "new_name": {"type": "string", "description": "The new name for the item (optional)."}, "new_quantity": {"type": "integer", "description": "The new stock quantity for the item (optional)."}, "new_price": {"type": "number", "description": "The new price per unit for the item (optional)."}}, "required": ["item_identifier"]}}},
+# ]
 tools = [
     # ... (keep existing definitions for get_summary, get_details, find_low_stock, add_item) ...
-    { "type": "function", "function": { "name": "get_inventory_summary", "description": "Get a summary of the inventory status: total distinct items and total quantity." }},
-    { "type": "function", "function": { "name": "get_item_details", "description": "Get details (quantity, price) for a specific item by its name or Item ID.", "parameters": { "type": "object", "properties": { "item_identifier": { "type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item." }}, "required": ["item_identifier"] }}},
-    { "type": "function", "function": { "name": "find_low_stock_items", "description": "Find items in the inventory that are low in stock, based on a quantity threshold.", "parameters": { "type": "object", "properties": { "quantity_threshold": { "type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user." }}, "required": [] }}},
-    { "type": "function", "function": { "name": "add_inventory_item", "description": "Adds a new item to the inventory system. Requires the item's name, quantity, and price.", "parameters": { "type": "object", "properties": { "item_name": { "type": "string", "description": "The name of the new item to add." }, "quantity": { "type": "integer", "description": "The initial stock quantity for the new item." }, "price": { "type": "number", "description": "The price per unit for the new item." }}, "required": ["item_name", "quantity", "price"] }}},
-
-    # --- NEW UPDATE ITEM TOOL DEFINITION ---
-    {
-        "type": "function",
-        "function": {
-            "name": "update_inventory_item",
-            "description": "Updates an existing item in the inventory. Requires the item's current name or ID, and at least one field to update (new name, new quantity, or new price).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "item_identifier": {
-                        "type": "string",
-                        "description": "The current name or Item ID of the item to be updated."
-                    },
-                    "new_name": {
-                        "type": "string",
-                        "description": "The new name for the item (optional)."
-                    },
-                    "new_quantity": {
-                        "type": "integer",
-                        "description": "The new stock quantity for the item (optional)."
-                    },
-                    "new_price": {
-                        "type": "number",
-                        "description": "The new price per unit for the item (optional)."
-                    }
-                },
-                # Only the identifier is strictly required to find the item
-                "required": ["item_identifier"]
-            },
-        },
-    },
-    # --- END OF UPDATE ITEM TOOL ---
+    types.FunctionDeclaration(name="get_inventory_summary", description="Get a summary of the inventory status: total distinct items and total quantity."),
+    types.FunctionDeclaration(name="get_item_details", description="Get details (quantity, price) for a specific item by its name or Item ID.", parameters={"type": "object", "properties": { "item_identifier": {"type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item."}}, "required":["item_identifier"]}),
+    types.FunctionDeclaration(name="find_low_stock_items", description="Find items in the inventory that are low in stock, based on a quantity threshold.", parameters={"type": "object", "properties": { "quantity_threshold": {"type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user."}}, "required":[]}),
+    types.FunctionDeclaration(name="add_inventory_item", description="Adds a new item to the inventory system. Requires the item's name, quantity, and price.", parameters={"type": "object", "properties": { "item_name": {"type": "string", "description": "The name of the new item to add."}, "quantity": {"type": "integer", "description": "The initial stock quantity for the new item."}, "price": {"type": "number", "description": "The price per unit for the new item."}}, "required":["item_name", "quantity", "price"]}),
+    types.FunctionDeclaration(name="update_inventory_item", description="Updates an existing item in the inventory. Requires the item's current name or ID, and at least one field to update (new name, new quantity, or new price).", parameters={"type": "object", "properties": {"item_identifier": {"type": "string", "description": "The current name or Item ID of the item to be updated."}, "new_name": {"type": "string", "description": "The new name for the item (optional)."}, "new_quantity": {"type": "integer", "description": "The new stock quantity for the item (optional)."}, "new_price": {"type": "number", "description": "The new price per unit for the item (optional)."}}, "required":["item_identifier"]}),
 ]
+
 # --- LLM Interaction Logic ---
 def run_conversation(user_prompt):
     """Sends conversation to OpenRouter, handles tool calls, returns final response."""
@@ -457,12 +453,29 @@ def run_conversation(user_prompt):
     messages_for_api = st.session_state.messages
 
     try:
-        # --- First API Call: Get response or tool request ---
-        response = client.chat.completions.create(
-            model=model_name, messages=messages_for_api, tools=tools, tool_choice="auto"
+        # # --- First API Call: Get response or tool request ---
+        # response = client.chat.completions.create(
+        #     model=model_name, messages=messages_for_api, tools=tools, tool_choice="auto"
+        # )
+
+        # Configure the client and tools
+        #  client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        tools = types.Tool(function_declarations=tools)
+        config = types.GenerateContentConfig(tools=[tools])
+
+        # Send request with function declarations
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            messages=messages_for_api,
+            config=config,
         )
-        response_message = response.choices[0].message
-        tool_calls = response_message.tool_calls
+
+        # Check for a function call
+        response_message = response.candidates[0].content # Gemini Content object
+        tool_calls = response_message.parts[0].function_call
+
+        # response_message = response.choices[0].message
+        # tool_calls = response_message.tool_calls
 
         # --- Handle Tool Calls (if any) ---
         if tool_calls:
