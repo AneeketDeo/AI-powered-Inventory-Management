@@ -666,7 +666,7 @@ def run_conversation(user_prompt):
         # Send message with tools configuration
         response = chat.send_message(
             user_prompt,
-            tools=[gemini_tool_config] # Pass the Tool object
+            tools=[function_declarations] # Pass the Tool object
         )
 
         # --- Process Gemini's Response ---
