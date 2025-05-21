@@ -3,3 +3,5 @@ pandas
 openai
 pytesseract
 Pillow
+google-genai
+google-generativeai

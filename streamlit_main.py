@@ -85,8 +85,8 @@ try:
     # )
 
     # Gemini API
-    # api_key - AIzaSyBvu2oED_2XxwhN7JK_H065plvOlj27cLQ
-    api_key = st.secrets["GEMINI_TOKEN"] # Must be set in secrets
+    # api_key 
+    api_key = st.secrets["GEMINI_API_KEY"] # Must be set in secrets
     # model
     model = "gemini-2.0-flash"
 
