@@ -18,6 +18,8 @@ import openai
 from openai import OpenAI
 from google import genai
 from google.genai import types
+import google.generativeai as generativeai
+
 
 
 # --- Configuration ---
@@ -94,7 +96,7 @@ try:
     # client = genai.Client(api_key= api_key)
 
     # testing
-    genai.configure(api_key=api_key)
+    generativeai.configure(api_key=api_key)
 
     # response - chat
     # response = client.models.generate_content(
