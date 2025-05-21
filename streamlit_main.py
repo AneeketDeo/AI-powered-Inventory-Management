@@ -91,14 +91,17 @@ try:
     model = "gemini-2.0-flash"
 
     # client
-    client = genai.Client(api_key= api_key)
+    # client = genai.Client(api_key= api_key)
+
+    # testing
+    genai.configure(api_key=api_key)
 
     # response - chat
-    response = client.models.generate_content(
-        model=model, 
-        messages=[{"role": "user", "content": "Hello!"}],
-        max_tokens=5
-    )
+    # response = client.models.generate_content(
+    #     model=model, 
+    #     messages=[{"role": "user", "content": "Hello!"}],
+    #     max_tokens=5
+    # )
 
     llm_provider = model
     llm_enabled = True
