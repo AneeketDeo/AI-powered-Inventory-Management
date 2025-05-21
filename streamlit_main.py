@@ -429,16 +429,7 @@ available_functions = {
 }
 
 # Define tool structure for the LLM API call
-# tools = [
-#     # ... (keep existing definitions for get_summary, get_details, find_low_stock, add_item) ...
-#     { "type": "function", "function": { "name": "get_inventory_summary", "description": "Get a summary of the inventory status: total distinct items and total quantity." }},
-#     { "type": "function", "function": { "name": "get_item_details", "description": "Get details (quantity, price) for a specific item by its name or Item ID.", "parameters": { "type": "object", "properties": { "item_identifier": { "type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item." }}, "required": ["item_identifier"] }}},
-#     { "type": "function", "function": { "name": "find_low_stock_items", "description": "Find items in the inventory that are low in stock, based on a quantity threshold.", "parameters": { "type": "object", "properties": { "quantity_threshold": { "type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user." }}, "required": [] }}},
-#     { "type": "function", "function": { "name": "add_inventory_item", "description": "Adds a new item to the inventory system. Requires the item's name, quantity, and price.", "parameters": { "type": "object", "properties": { "item_name": { "type": "string", "description": "The name of the new item to add." }, "quantity": { "type": "integer", "description": "The initial stock quantity for the new item." }, "price": { "type": "number", "description": "The price per unit for the new item." }}, "required": ["item_name", "quantity", "price"] }}},
-#     {"type": "function", "function": {"name": "update_inventory_item", "description": "Updates an existing item in the inventory. Requires the item's current name or ID, and at least one field to update (new name, new quantity, or new price).", "parameters": {"type": "object", "properties": {"item_identifier": {"type": "string", "description": "The current name or Item ID of the item to be updated."}, "new_name": {"type": "string", "description": "The new name for the item (optional)."}, "new_quantity": {"type": "integer", "description": "The new stock quantity for the item (optional)."}, "new_price": {"type": "number", "description": "The new price per unit for the item (optional)."}}, "required": ["item_identifier"]}}},
-# ]
-tools = [
-    # ... (keep existing definitions for get_summary, get_details, find_low_stock, add_item) ...
+function_declarations = [
     types.FunctionDeclaration(name="get_inventory_summary", description="Get a summary of the inventory status: total distinct items and total quantity."),
     types.FunctionDeclaration(name="get_item_details", description="Get details (quantity, price) for a specific item by its name or Item ID.", parameters={"type": "object", "properties": { "item_identifier": {"type": "string", "description": "The name (e.g., 'Laptop', 'Keyboard') or Item ID (e.g., 'ITEM001') of the inventory item."}}, "required":["item_identifier"]}),
     types.FunctionDeclaration(name="find_low_stock_items", description="Find items in the inventory that are low in stock, based on a quantity threshold.", parameters={"type": "object", "properties": { "quantity_threshold": {"type": "integer", "description": "The quantity threshold. Items with quantity at or below this value are considered low stock. Defaults to 10 if not specified by the user."}}, "required":[]}),
@@ -460,14 +451,8 @@ def run_conversation(user_prompt):
     messages_for_api = st.session_state.messages
 
     try:
-        # # --- First API Call: Get response or tool request ---
-        # response = client.chat.completions.create(
-        #     model=model_name, messages=messages_for_api, tools=tools, tool_choice="auto"
-        # )
-
         # Configure the client and tools
-        #  client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        tools = types.Tool(function_declarations=tools)
+        tools = types.Tool(function_declarations=function_declarations)
         config = types.GenerateContentConfig(tools=[tools])
 
         # Send request with function declarations
@@ -481,9 +466,6 @@ def run_conversation(user_prompt):
         response_message = response.candidates[0].content # Gemini Content object
         tool_calls = response_message.parts[0].function_call
 
-        # response_message = response.choices[0].message
-        # tool_calls = response_message.tool_calls
-
         # --- Handle Tool Calls (if any) ---
         if tool_calls:
             # **FIX:** Append the assistant's response as a dictionary
@@ -493,10 +475,6 @@ def run_conversation(user_prompt):
                 "tool_calls": response_message.tool_calls # Store the list of tool call objects
             }
             st.session_state.messages.append(assistant_message_dict)
-
-            # Execute tools and collect results
-            # Inside the `if tool_calls:` block, replace the tool execution loop (`for tool_call in tool_calls:`)
-# with this enhanced version:
 
             # Execute tools and collect results
             tool_results_messages = []
@@ -524,10 +502,6 @@ def run_conversation(user_prompt):
 
                         elif function_name == "get_inventory_summary":
                              function_response = function_to_call()
-
-                        # Inside run_conversation's `if tool_calls:` loop, within the `for tool_call in tool_calls:` section:
-
-                        # Inside run_conversation's `if tool_calls:` loop, within the `for tool_call in tool_calls:` section:
 
                         elif function_name == "add_inventory_item":
                             # Pre-call check for KEY PRESENCE from LLM Arguments
@@ -558,7 +532,6 @@ def run_conversation(user_prompt):
                                     # The 'message' should guide the LLM's response generation directly
                                     "message": user_facing_request
                                 })
-                                # Log for debugging: print(f"DEBUG: LLM add_item blocked, missing {details_needed}. User needs to provide. Args received: {function_args}")
                             else:
                                 # Keys and non-None values were provided by LLM.
                                 # Proceed to call the function for value validation (e.g., positive checks).
@@ -1040,11 +1013,11 @@ elif selected_page == "📄 OCR Process":
 #                                 scrollPos = mainScrollable.scrollTop;
 #                             } else {
 #                                 // Fallback scroll position check
-#                                 scrollPos = document.body.scrollTop || document.documentElement.scrollTop || window.pageYOffset;
+#                                 scrollPos = document.body.scrollTop || document.documentElement.scrollTop;
 #                             }
 #                         } catch (e) {
 #                             // Fallback if accessing parent/querySelector fails
-#                             scrollPos = document.body.scrollTop || document.documentElement.scrollTop || window.pageYOffset;
+#                             scrollPos = document.body.scrollTop || document.documentElement.scrollTop;
 #                         }
 
 
