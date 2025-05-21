@@ -101,7 +101,10 @@ try:
     response = client.models.generate_content(
         model=model, 
         contents="Hello!",
-        max_tokens=5
+        config=types.GenerateContentConfig(
+            max_output_tokens=5,
+            temperature=0.1
+        )
     )
 
     llm_provider = model
