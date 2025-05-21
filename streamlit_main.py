@@ -458,7 +458,7 @@ def run_conversation(user_prompt):
         # Send request with function declarations
         response = client.models.generate_content(
             model="gemini-2.0-flash",
-            messages=messages_for_api,
+            contents=messages_for_api,
             config=config,
         )
 
