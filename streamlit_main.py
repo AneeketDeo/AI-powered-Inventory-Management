@@ -93,6 +93,7 @@ try:
     model = "gemini-2.0-flash"
 
     # ----------------------------------- > NEW < -----------------------------------
+    genai.configure(api_key=api_key)
     gemini_model = genai.GenerativeModel(model)
 
     # ----------------------------------- > OLD < -----------------------------------
