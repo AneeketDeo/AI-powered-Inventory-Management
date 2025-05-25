@@ -727,19 +727,38 @@ def run_conversation(user_prompt):
     st.session_state.messages.append({"role": "user", "content": [{"text": user_prompt}]}) # Store in Gemini format for history
 
     try:
-        # Configure the client and tools
-        tools = types.Tool(function_declarations=function_declarations)
-        config = types.GenerateContentConfig(tools=[tools])
+        # # Configure the client and tools
+        # tools = types.Tool(function_declarations=function_declarations)
+        # config = types.GenerateContentConfig(tools=[tools])
 
-        # Send request with function declarations
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
+        # # Send request with function declarations
+        # response = client.models.generate_content(
+        #     model="gemini-2.0-flash",
+        #     contents=user_prompt,
+        #     config=config,
+        # )
+
+        # Assuming 'types' is imported, e.g., from google.generativeai import types
+        # And function_declarations is your list of dictionaries
+        tools = types.Tool(function_declarations=function_declarations)
+        generation_config_obj = types.GenerateContentConfig(tools=[tools]) # Renamed for clarity
+
+        # Use gemini_model here
+        response = gemini_model.generate_content(
             contents=user_prompt,
-            config=config,
+            generation_config=generation_config_obj # Pass the config here
         )
 
         # --- Process Gemini's Response ---
-        response_message = response.candidates[0].content # Gemini Content object
+        if response and response.candidates:
+            response_message = response.candidates[0].content
+            # ... further processing
+        else:
+            print("Error: No response or candidates received.")
+            response_message = None
+
+        # --- Process Gemini's Response ---
+        # response_message = response.candidates[0].content # Gemini Content object
         final_text_response = None
 
         # Check for function calls requested by Gemini
