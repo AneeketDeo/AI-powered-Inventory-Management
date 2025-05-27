@@ -46,7 +46,7 @@ This project is a Streamlit-based web application for managing inventory with AI
 
 ## Key Components
 
-### Inventory Data Structure
+### Inventory Data Structures
 
 ```python
 {
